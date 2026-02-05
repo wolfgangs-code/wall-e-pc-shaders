@@ -1,0 +1,7 @@
+	#include "hlsl_math.h"
+	
+	float4 ph_zonly() : COLOR
+	{
+		return	float4(1,1,1,1);
+	}
+	

@@ -1,0 +1,45 @@
+	#include "hlsl_math.h"
+
+	// Vertex shader for Vertex3D_Z
+	void vh_3d (const in VS_3DIn i, out VS_3DOut o)
+	{
+		o.position		= ProjVertex( float4(i.position.xyz,1) );
+		o.color			= i.color;
+		o.diffuse		= i.diffuse;
+		o.fog.xyz		= FOG_COLOR;
+		o.fog.w			= FOG_ON*i.position.w;
+	}
+	float4 ph_3d (const in VS_3DOut i) : COLOR0
+	{
+		float4	color;
+		color.rgb = i.color.rgb*tex2D(sDiffuse,i.diffuse).rgb*2;
+		color.a	  = i.color.a*tex2D(sDiffuse,i.diffuse).a;
+		color.xyz = lerp(color.xyz,i.fog.xyz,i.fog.w);
+		return color;
+	}
+
+	// Vertex shader for Vertex2D_Z
+	void vh_2d (const VS_2DInOut i, out VS_2DInOut o)
+	{
+		o.position.xy	= (i.position.xy-VIEWPORT_RDR_CENTER)/VIEWPORT_HALF_SIZE;
+//		o.position.zw	= i.position.zw;
+		// DX divide XYZ by W. We multiply by W to keep XY untouched.
+//		o.position.xz	=*i.position.w;	
+
+		o.position.z	= ProjectZ(i.position.z);
+		o.position.w	= i.position.z;
+		o.position.xy	*= o.position.w;
+
+		o.diffuse	= i.diffuse;
+		o.color		= i.color;
+	}
+	
+	// Pixel shader
+	float4 ph_2d(in VS_2DInOut i) : COLOR0
+	{
+		float4	color;
+		color.rgb = i.color.rgb*tex2D(sDiffuse,i.diffuse).rgb*2;
+		color.a	  = i.color.a*tex2D(sDiffuse,i.diffuse).a;
+		return color;
+	}
+	

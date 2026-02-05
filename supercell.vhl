@@ -1,0 +1,23 @@
+	#include "hlsl_math.h"
+#define gray 0.2f
+	void vh_supercell (const VS_3DIn i, out VS_3DOut o)
+	{
+//		float3 ambient = float3(gray, gray, gray);
+	
+		float4 position = ViewVertex( float4(i.position.xyz, C_UNIT) );
+		position.xy += (i.diffuse.xy * C_TWO - C_UNIT) * i.position.w;
+		
+//		float3 lightDir = ViewVertex(float4(normalize(float3(1.0f, -1.0f, 1.0f)), C_NULL));
+//		float3 lightDir = normalize(float3(1.0f, -1.0f, 1.0f));
+		
+//		float3 litColor = i.color.xyz * max(0, dot(-lightDir, normalize(position) ));
+		
+//		float4 color = float4( litColor *0.8f+ ambient , i.color.a);
+
+		o.position		= ProjVertex( float4( position.xyz, C_UNIT) );
+		o.color			= i.color;
+		o.diffuse		= i.diffuse;
+		o.fog.xyz		= FOG_COLOR;
+		o.fog.w			= FOG_ON;
+	}
+

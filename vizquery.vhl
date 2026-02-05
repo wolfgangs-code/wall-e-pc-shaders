@@ -1,0 +1,20 @@
+	#include "hlsl_math.h"
+
+	struct VS_Input {
+		float4	position	: POSITION0;
+	};
+	
+	void vh_vizquery(const VS_Input i, out VS_Output o)
+	{
+		o.position.xy	= VIZQUERY_SIZE*i.position.xy + VIZQUERY_XYZ.xy;
+		o.position.xy	= (o.position.xy-VIEWPORT_RDR_CENTER)/VIEWPORT_HALF_SIZE.xy;
+		o.position.z	= ProjectZ(VIZQUERY_XYZ.z);
+		o.position.w	= VIZQUERY_XYZ.z;
+		
+		o.position.xy	*= o.position.w;
+
+		// Color = WHITE, No texture, No fog
+		o.light		= C_UNIT;
+		o.TexCoord.diffuse.xy = C_NULL;
+		o.fog		= C_NULL;
+	}

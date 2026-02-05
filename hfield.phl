@@ -1,0 +1,37 @@
+	sampler sNoise;
+	sampler sHField;
+	sampler sRefl;
+
+	struct p_input
+	{
+		float2 tNoise  : TEXCOORD0;
+		float2 tDiffuse  : TEXCOORD1;
+		float2 tRefl  : TEXCOORD2;
+		float4 cDiffuse  : COLOR0;
+		float4 cFog  : COLOR1;			//cFog.w = Noise Fade
+	};
+
+	float4 ph_hfield (const p_input i) : COLOR
+	{
+		float4	oDiffuse;
+		
+		//Diffuse - Noise
+		float4	tDiffuse=tex2D(sHField,i.tDiffuse);
+		float4	tNoise=tex2D (sNoise, i.tNoise);
+
+		oDiffuse.xyz=tDiffuse.xyz;
+
+#ifdef	bNoise		
+		oDiffuse.xyz-=tNoise*i.cFog.w;
+#endif
+
+		oDiffuse.w=tDiffuse.w*i.cDiffuse.w;
+#ifdef	bRefl		
+		//Refl
+		float3	tRefl=tex2D(sRefl,i.tRefl);
+		oDiffuse.xyz+=tRefl*tNoise.w;
+#endif		
+		//Fog
+		oDiffuse.xyz=oDiffuse.xyz*2.f*i.cDiffuse+i.cFog;
+		return	oDiffuse;
+	}

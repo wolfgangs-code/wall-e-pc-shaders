@@ -1,0 +1,56 @@
+	#include "hlsl_math.h"
+
+
+	float4 ph_base (const PS_Input i) : COLOR
+	{
+#ifdef	bScreenCopy
+		float4	oDiffuse;
+		oDiffuse.xyz=tex2D(sScreenCopy,i.TexCoord.diffuse);
+		oDiffuse.w = 1.f;
+#else
+		float4	oDiffuse= tex2D(sDiffuse,i.TexCoord.diffuse);
+#endif
+
+#ifdef bRadiosity
+		oDiffuse.xyz*=RadMap(i.TexCoord);
+#endif
+
+		oDiffuse.xyz *= 2;						//Le Laisser ICI !
+		
+#ifndef	bNoDLight
+		oDiffuse.xyz*=i.light.xyz;
+#endif
+		oDiffuse.w*=i.light.w;
+
+#ifdef	bSpecular
+		float3	tSpecular = tex2D(sSpecular,i.TexCoord.diffuse);
+		oDiffuse.xyz+=i.eyevec.xyz*tSpecular.xyz;
+#endif
+
+#ifdef	bEnvmap
+	#ifdef	bEnvmapScreen
+		float2	cEnvmap=(i.envmap.xy / i.envmap.z)*float2(0.5f,-0.5f) + 0.5f;
+	#else
+		float2	cEnvmap=i.envmap.xy;
+	#endif
+	float4	tEnvmap=tex2D(sEnvmap,cEnvmap);
+	#ifdef	bEnvmapAlpha
+	tEnvmap.xyz*=oDiffuse.w;
+	#endif
+	#ifdef	bSpecular
+		oDiffuse.xyz+=tEnvmap.xyz*tEnvmap.w*gMaterial.Emissive.w*tSpecular.xyz;
+	#else
+		oDiffuse.xyz+=tEnvmap.xyz*tEnvmap.w*gMaterial.Emissive.w;
+	#endif	
+#endif
+	
+#ifndef	bNoFog
+		oDiffuse.xyz = lerp(oDiffuse.xyz,i.fog.xyz,i.fog.w);
+#endif
+		return	oDiffuse;
+	}
+
+	float4 ph_base_one () : COLOR
+	{
+		return	1;
+	}

@@ -1,0 +1,18 @@
+	#include "hlsl_math.h"
+	#include "hlsl_shadow.h"
+	
+	//#define DEBUG_SHADOW
+	
+	float4 ph_shadow(const VS_Output_ShadowMap i) : COLOR0
+	{
+	#ifndef	bShadowNoUV
+		float4		tDiffuse=tex2D(sDiffuseShadowMap,i.uvzw.xy);
+		clip(tDiffuse.a-0.5);
+	#endif
+	
+	#ifdef DEBUG_SHADOW
+		return	float4( 1,1,1,1 );
+	#else
+		return	float4( i.uvzw.z/i.uvzw.w,1,1,1 );
+	#endif
+	}

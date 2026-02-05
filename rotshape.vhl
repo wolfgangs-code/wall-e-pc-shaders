@@ -1,0 +1,137 @@
+	#include "rotshape.h"
+/*
+ 	//rotshape des tree
+	void vh_base(const VS_Input i,inout VS_Output o)
+	{
+		BaseMaterial(i.uv,i.uv,o.TexCoord);
+	
+		float4	vPos=WorldToViewVertex(WorldVertex(i.position));
+		
+		vPos.xyz+=C_RIGHT*i.delta;
+		vPos.xyz+=C_UP*i.delta;
+		vPos.xyz+=C_FRONT*i.delta;
+
+
+		o.position=ProjVertex(vPos);
+		o.color	=i.color;
+
+		//Tangent Space
+		float3x3 mLight	= LightMat(i.position,i.position);
+		OutTexSpace(o.TexSpace,mLight,i.position,i.position);
+	}
+	*/
+	void vh_front(in const VS_Vertex3D i,out VS_Output o)
+	{
+		float3	X,Y,Z;
+
+		float4 pivot = WorldToViewVertex(WorldVertex(RSHAPE_PIVOT));
+		float3 pos = (C_UNIT-i.position.xyz)*RSHAPE_DWRIGHT + i.position.xyz*RSHAPE_UPLEFT;
+		//		Z = Pivot;
+		//		Z.Normalize();
+		//		Z *= -Scale;
+		//		X = (Vec3f(CamInvMat.m[1][0],CamInvMat.m[1][1],CamInvMat.m[1][2])^Z).Normalize();
+		//		Y = Z^X;
+		//		X *= Scale;
+		float3 viewAxis = normalize( float3(c[C_VIEW_CONTEXT].y, c[C_VIEW_CONTEXT+1].y, c[C_VIEW_CONTEXT+2].y) );
+
+		Z = normalize(pivot.xyz).xyz;
+		X = cross(viewAxis,Z).xyz;
+		Y = cross(Z,X).xyz;
+		
+		
+		// Scale
+		X = X*RSHAPE_SCALE;
+		Y = Y*RSHAPE_SCALE;
+		Z = Z*(-RSHAPE_SCALE);
+		float4 vertex_position;
+		vertex_position.xyz = X*pos.x + Y*pos.y + Z*pos.z + pivot.xyz;
+		vertex_position.w = C_UNIT;
+
+		o.position = ProjVertex(vertex_position);
+		o.TexCoord.diffuse.xy = MaterialMat(i.uv);
+		o.light.xyz = ((DLIGHT_COLOR+DLIGHT_AMBIENT)*MTL_DIFFUSE)+MTL_EMISSIVE;
+		o.light.w = MTL_EMISSIVE.w*GOURAUD_DFLT.w;
+		o.fog = Fog(RSHAPE_PIVOT);
+	}	
+	
+	void vh_normal(in const VS_Vertex3D i,out VS_Output o)
+	{
+		float3	X,Y,Z;
+
+		float4 pivot = WorldToViewVertex(WorldVertex(RSHAPE_PIVOT));
+		float3 pos = (C_UNIT-i.position.xyz)*RSHAPE_DWRIGHT + i.position.xyz*RSHAPE_UPLEFT;
+		//		Y = Vec3f(CamInvMat.m[1][0],CamInvMat.m[1][1],CamInvMat.m[1][2])*Scale;
+		//		X = (Pivot^Y).Normalize();
+		//		Z = X ^ Y;
+		//		X *= Scale;
+		//		Z.Normalize();
+		//		Z *= Scale;
+		Y = normalize( float3(c[C_VIEW_CONTEXT].y, c[C_VIEW_CONTEXT+1].y, c[C_VIEW_CONTEXT+2].y) );
+		X = normalize( cross(pivot.xyz,Y) );
+		Z = cross(X,Y);
+
+		// Scale
+		X = X*RSHAPE_SCALE;
+		Y = Y*RSHAPE_SCALE;
+		Z = Z*RSHAPE_SCALE;
+		float4 vertex_position;
+		vertex_position.xyz = X*pos.x + Y*pos.y + Z*pos.z + pivot.xyz;
+		vertex_position.w = C_UNIT;
+
+		o.position = ProjVertex(vertex_position);
+		o.TexCoord.diffuse.xy = MaterialMat(i.uv);
+		o.light.xyz = ((DLIGHT_COLOR+DLIGHT_AMBIENT)*MTL_DIFFUSE)+MTL_EMISSIVE;
+		o.light.w = MTL_EMISSIVE.w*GOURAUD_DFLT.w;
+		o.fog = Fog(RSHAPE_PIVOT);
+	}
+	void vh_front_viz(in const VS_Vertex3D i,out VS_Output o)
+	{
+		float3 pos = (C_UNIT-i.position.xyz)*RSHAPE_DWRIGHT + i.position.xyz*RSHAPE_UPLEFT;
+		float4 vertex_position;
+		vertex_position.xyz = pos*RSHAPE_SCALE + RSHAPE_PIVOT;
+		// To Near Plane
+		vertex_position.xy/=vertex_position.z;
+		vertex_position.zw = C_UNIT;
+		
+		o.position = ProjVertex(vertex_position);
+		o.TexCoord.diffuse.xy = i.uv;
+		o.light= MTL_EMISSIVE;
+		o.light.xyz*=MTL_DIFFUSE;
+		o.light.w*=VIZQUERY_RESULT*GOURAUD_DFLT.w;
+		o.fog = C_NULL;
+	}
+	void vh_normal_viz(in const VS_Vertex3D i,out VS_Output o)
+	{
+		float3	X,Y,Z;
+
+		float4 pivot = WorldToViewVertex(WorldVertex(RSHAPE_PIVOT));
+		float3 pos = (C_UNIT-i.position.xyz)*RSHAPE_DWRIGHT + i.position.xyz*RSHAPE_UPLEFT;
+		//		Y = Vec3f(CamInvMat.m[1][0],CamInvMat.m[1][1],CamInvMat.m[1][2])*Scale;
+		//		X = (Pivot^Y).Normalize();
+		//		Z = X ^ Y;
+		//		X *= Scale;
+		//		Z.Normalize();
+		//		Z *= Scale;
+		Y = normalize( float3(c[C_VIEW_CONTEXT].y, c[C_VIEW_CONTEXT+1].y, c[C_VIEW_CONTEXT+2].y) );
+		X = normalize( cross(pivot.xyz,Y) );
+		Z = cross(X,Y);
+
+		// Scale
+		X = X*RSHAPE_SCALE;
+		Y = Y*RSHAPE_SCALE;
+		Z = Z*RSHAPE_SCALE;
+		float4 vertex_position;
+		vertex_position.xyz = X*pos.x + Y*pos.y + Z*pos.z + pivot.xyz;
+
+		// To Near Plane
+		vertex_position.xy/=vertex_position.z;
+		vertex_position.zw = C_UNIT;
+		
+		o.position = ProjVertex(vertex_position);
+		o.TexCoord.diffuse.xy = i.uv;
+		o.light= MTL_EMISSIVE;
+		o.light.xyz*=MTL_DIFFUSE;
+		o.light.w*=VIZQUERY_RESULT*GOURAUD_DFLT.w;
+		o.fog = C_NULL;
+	}
+	

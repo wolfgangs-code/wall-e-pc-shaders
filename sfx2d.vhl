@@ -1,0 +1,25 @@
+	#include "particle.h"
+
+	void vh_sfx2d (const VS_3DIn i, out VS_3DOut o)
+	{
+		float4 position = float4(i.position.xyz, C_UNIT);
+
+		o.position		= float4( position.xyz, 1 );
+		o.color			= i.color;
+		o.diffuse		= i.diffuse;
+		o.fog.xyz		= FOG_COLOR;
+		o.fog.w			= FOG_ON*i.position.w;
+	}
+
+	void vh_billboard2d (const VS_3DIn i, out VS_3DOut o)
+	{
+		float2 uv = (C_UNIT - i.diffuse.xy * C_TWO) * i.position.w;
+		float4 position = float4( float3( i.position.xy + uv, i.position.z), C_UNIT);
+
+		o.position		= float4( position.xyz, 1 );
+		o.color			= i.color;
+		o.diffuse		= i.diffuse;
+		o.fog.xyz		= FOG_COLOR;
+		o.fog.w			= FOG_ON*i.position.w;
+	}
+

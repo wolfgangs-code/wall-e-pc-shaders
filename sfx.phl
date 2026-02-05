@@ -1,0 +1,31 @@
+	#include "sfx.h"
+	#include "particle.h"
+
+	float4 ph_sfxbase (in VS_SmokeOut i) : COLOR0
+	{
+	
+		float4	color;
+		color.rgb = i.color.rgb*tex2D(sDiffuse,i.diffuse).rgb*2;
+		color.a	  = i.color.a*tex2D(sDiffuse,i.diffuse).a;
+
+		float4	tNormal=float4(0,1,0,1);
+		color.xyz=lighting(i.sundir.xyz,
+						i.sundir.xyz,i.skydir.xyz,
+	 					i.sundir.xyz,
+						i.sunlight.rgb*0.1,
+						i.skylight.rgb,
+						color.rgb,
+						0,
+						1.f);	
+						
+		color.xyz *= i.extinction;
+		color.xyz += i.inscatter;
+
+#ifdef _X360
+		color.xyz = PackHDRSample( color.xyz );
+#endif
+	
+		return color;
+	}
+	
+	

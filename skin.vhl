@@ -1,0 +1,106 @@
+	#include "skin.h"
+	void vh_blend1(const VS_Input_1Blend i, inout VS_Output o)
+	{
+		VS_Output_Blended	b;
+		Blend1(i,i.position,b);
+		Blend(b,i.uv,o);
+	}
+	void vh_blend4(const VS_Input_4Blend i, inout VS_Output o)
+	{
+		VS_Output_Blended	b;
+		Blend4(i,i.position,b);
+		Blend(b,i.uv,o);
+
+	}
+	
+#ifndef	bVLight
+	void vh_blend1_omni(const VS_Input_1Blend i, inout VS_Output_Omni o)
+	{
+		VS_Output_Blended	b;
+		Blend1(i,i.position,b);
+		BlendOmni(b,i.uv,o);
+	}
+	void vh_blend4_omni(const VS_Input_4Blend i, inout VS_Output_Omni o)
+	{
+		VS_Output_Blended	b;
+		Blend4(i,i.position,b);
+		BlendOmni(b,i.uv,o);
+	}
+#endif
+	void vh_blend1_morph(const VS_Input_1Blend i,	in const float3 morph_d0 : POSITION3,
+													in const float3	morph_d1 : POSITION4,
+													in const float3	morph_d2 : POSITION5,
+													in const float3	morph_d3 : POSITION6,
+													inout VS_Output o)
+	{
+		float4	position=i.position;
+			position.xyz+=morph_d0*C_MORPH_RATIO_0;
+			position.xyz+=morph_d1*C_MORPH_RATIO_1;
+			position.xyz+=morph_d2*C_MORPH_RATIO_2;
+			position.xyz+=morph_d3*C_MORPH_RATIO_3;
+		VS_Output_Blended	b;
+		Blend1(i,position,b);
+		Blend(b,i.uv,o);
+	}
+	
+	
+	void vh_blend4_morph(const VS_Input_4Blend i,	in const float3 morph_d0 : POSITION4,
+													in const float3	morph_d1 : POSITION5,
+													in const float3	morph_d2 : POSITION6,
+													in const float3	morph_d3 : POSITION7,
+													inout VS_Output o)
+	{
+		float4	position=i.position;
+			position.xyz+=morph_d0*C_MORPH_RATIO_0;
+			position.xyz+=morph_d1*C_MORPH_RATIO_1;
+			position.xyz+=morph_d2*C_MORPH_RATIO_2;
+			position.xyz+=morph_d3*C_MORPH_RATIO_3;
+		VS_Output_Blended	b;
+		Blend4(i,position,b);
+		Blend(b,i.uv,o);
+	}
+#ifndef	bVLight
+	void vh_blend1_morph_omni(const VS_Input_1Blend i,	in const float3 morph_d0 : POSITION3,
+													in const float3	morph_d1 : POSITION4,
+													in const float3	morph_d2 : POSITION5,
+													in const float3	morph_d3 : POSITION6,
+													inout VS_Output_Omni o)
+	{
+		float4	position=i.position;
+			position.xyz+=morph_d0*C_MORPH_RATIO_0;
+			position.xyz+=morph_d1*C_MORPH_RATIO_1;
+			position.xyz+=morph_d2*C_MORPH_RATIO_2;
+			position.xyz+=morph_d3*C_MORPH_RATIO_3;
+		VS_Output_Blended	b;
+		Blend1(i,position,b);
+		BlendOmni(b,i.uv,o);
+	}
+	void vh_blend4_morph_omni(const VS_Input_4Blend i,	in const float3 morph_d0 : POSITION4,
+													in const float3	morph_d1 : POSITION5,
+													in const float3	morph_d2 : POSITION6,
+													in const float3	morph_d3 : POSITION7,
+													inout VS_Output_Omni o)
+	{
+		float4	position=i.position;
+			position.xyz+=morph_d0*C_MORPH_RATIO_0;
+			position.xyz+=morph_d1*C_MORPH_RATIO_1;
+			position.xyz+=morph_d2*C_MORPH_RATIO_2;
+			position.xyz+=morph_d3*C_MORPH_RATIO_3;
+		VS_Output_Blended	b;
+		Blend4(i,position,b);
+		BlendOmni(b,i.uv,o);
+	}
+#endif
+	void vh_blend1_refract(const VS_Input_1Blend i, inout VS_Output o)
+	{
+		VS_Output_Blended	b;
+		Blend1(i,i.position,b);
+		Blend(b,i.uv,o);
+	}
+
+	void vh_blend4_refract(const VS_Input_4Blend i, inout VS_Output o)
+	{
+		VS_Output_Blended	b;
+		Blend4(i,i.position,b);
+		Blend(b,i.uv,o);
+	}

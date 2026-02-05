@@ -1,0 +1,87 @@
+	#include "ground.h" 
+	#include "hlsl_shadow.h"
+	
+	const float4 gGlobalWetness;
+
+	float4 ph_base(const VS_GroundOutput i) : COLOR0
+	{	
+		#ifdef	bShadowMapNoise
+//			float2 noiseUV = ComputeShadowNoiseUV( i.shadowNoiseUv );	
+		#endif
+
+		float4	tDiffuse;
+		tDiffuse.w=1;
+                     
+		//Lerp
+		float2	uv=GetBumpUV(i);
+		float4	tNormal0 = tex2D(sBumpMap0,uv.xy);
+		float4	tNormal1 = tex2D(sBumpMap1,uv.xy);
+		float4	tNormal2 = tex2D(sBumpMap2,uv.xy);
+		float4	tNormal = lerp(tNormal0,tNormal1,GetBump1Lerp(i));
+		tNormal = lerp(tNormal,tNormal2,GetBump2Lerp(i));
+		tNormal.xyz = normalize(tNormal.xyz*2-1);
+		uv=GetDiffuseUV(i);
+		tDiffuse = tex2D(sDiffuse,uv.xy);
+		float4	tDiffuse2 = i.color*tNormal.w*2;
+		tDiffuse = lerp(tDiffuse2,tDiffuse,tDiffuse.w*i.eyevec.w);
+
+	#ifdef	bShadowMap
+		#ifdef bShadowMapNoise
+		float	shadow=PixelShadowNoise(i.shadowtcproj,noiseUV,i.shadowNoiseUv.z);
+		#else
+		float	shadow=PixelShadow4(i.shadowtcproj);
+		#endif
+	#else
+		float	shadow=1;
+	#endif
+		float	occlusion=GetOcclusion(i);
+	#ifdef	bOmni
+		float	omniv=tex2D(sProjSpotMap0,float2(i.omni.x,0)).r;
+		omniv*=tex2D(sProjSpotMap0,float2(i.omni.z,0)).r;
+		omniv*=tex2D(sProjSpotMap0,float2(i.omni.y,0)).r;
+//		omniv=pow(omniv,0.5);//*omniv*omniv*omniv;
+		occlusion*=(1-omniv);
+	#endif
+		float3 eye = normalize(i.eyevec.xyz);
+		
+		tDiffuse.xyz=lighting(tNormal.xyz,
+						normalize(i.sundir.xyz),normalize(i.skydir.xyz),
+	 					eye.xyz,
+						gDSunColor.xyz,lerp(gDSkyAmbient.rgb,gDSkyColor.rgb,occlusion),tDiffuse.xyz,
+						GetSpecular(i),
+						shadow);
+
+		if (gGlobalWetness.x>0.0001f)
+		{
+			float wetness = min( (GetSpecular(i) + 0.2f) * gGlobalWetness.x, 1.0f );
+
+			tNormal.y *= 4.0f; //gReflectionNormalScale
+			tNormal = normalize( tNormal );
+			
+	    	float3 vReflect = reflect( -eye.xyz, tNormal.xyz );
+		
+			vReflect.z = -vReflect.z; //TODO fix this hack
+			float4 vEnvironment = texCUBE( sGlobalCube, vReflect );
+
+		#ifdef _X360
+			vEnvironment.rgb = UnpackHDRSample( vEnvironment );
+		#endif
+		
+			vEnvironment.rgb*=0.2f;
+			tDiffuse.xyz = lerp(tDiffuse.rgb,vEnvironment.rgb,wetness);
+
+	    }
+	
+		tDiffuse.w = i.color.w;
+		tDiffuse.xyz *= i.extinction.xyz;
+		tDiffuse.xyz += i.inscatter.xyz;
+		
+		#ifdef _X360
+			tDiffuse.xyz = PackHDRSample( tDiffuse.xyz );
+		#endif
+		return	tDiffuse;
+	} 
+
+
+
+		

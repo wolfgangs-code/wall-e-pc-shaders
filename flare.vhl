@@ -1,0 +1,23 @@
+	#include "hlsl_math.h"
+
+	struct VS_Input {
+		float4	color		: POSITION0;
+		float2	uv			: POSITION1;
+		float3	scaleandpos	: POSITION2;			//xy=scale z=pos
+	};
+	
+	void vh_flare(const VS_Input i, out VS_Output o)
+	{
+		float4	p;	
+		
+		p.zw=C_UNIT;
+		p.xy=FLARE_VECXY*i.scaleandpos.z;
+		p.xy+=i.scaleandpos.xy*FLARE_SIZE_MUL;
+		
+		o.position	=	ProjVertex(p);
+		o.light		=	i.color*(MTL_DIFFUSE+MTL_EMISSIVE);
+		o.light.w	*=	FLARE_ALPHA_MUL*VIZQUERY_RESULT;		
+		
+		o.TexCoord.diffuse.xy= MaterialMat(float2(i.uv.x,i.uv.y));
+		o.fog		=	C_NULL;
+	}

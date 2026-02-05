@@ -1,0 +1,61 @@
+	#include "hlsl_math.h"
+
+	float4	ph_base(	const PS_Input_Ref i ) : COLOR
+	{
+		float3	tNormal;
+	#ifdef	bNormal
+		tNormal = (2 * tex2D( sNormal, i.diffuse.xy) - 1);	// Normal map
+		tNormal = normalize(tNormal);
+	#else
+		tNormal = normalize(i.normal);					// Vertex normal
+	#endif
+		float4	tDiffuse=tex2D(sDiffuse,i.diffuse.xy);
+	
+	#ifdef bRadiosity
+		tDiffuse.xyz*=tex2D(sRadiosityMap,i.diffuse.zw);
+	#endif
+
+		float2	screenuv;
+		screenuv.xy = (i.projpos.xy / i.projpos.w)*float2(0.5f,-0.5f) + 0.5f;
+
+		//Refraction / Normal
+	//	float3	oNormal=normalize(mul(tNormal,mlight));
+	//	screenuv.xy+=oNormal.xy*gRefraction.w*tDiffuse.w;
+
+		screenuv.xy+=tNormal.xy*gRefraction.w*tDiffuse.w;
+		float3	tScreen=tex2D(sScreenCopy,screenuv);
+
+		//*Material + Blend Screen with diffuse alpha
+		float4	oDiffuse;	
+		oDiffuse.xyz=tDiffuse.xyz*2*gRefraction.xyz;
+		oDiffuse.xyz=lerp(tScreen,oDiffuse.xyz, tDiffuse.w);
+		oDiffuse.w = 1;
+
+	#ifdef	bSpecular
+		float3	eye = normalize(i.eyevec);
+		float3	tSpecular = tex2D(sSpecular,i.diffuse);
+		float3	ref = dot(tNormal,eye)*tNormal*2-eye;
+		float3	tLight = (2 * i.light - 1);
+				tLight = normalize(tLight);
+
+		float	s = saturate(dot(ref,tLight));
+		s = pow(s,gMaterial.Specular.w);
+		oDiffuse.xyz += s*gMaterial.Specular*gDLight.Color*tSpecular;
+	#endif
+
+	#ifdef	bEnvmap
+			float4	tEnvmap=tex2D(sEnvmap,i.envmap);
+		#ifdef	bSpecular
+			oDiffuse.xyz+=tEnvmap.xyz*gMaterial.Emissive.w*tSpecular.xyz;
+		#else
+			oDiffuse.xyz+=tEnvmap.xyz*gMaterial.Emissive.w;
+		#endif	
+	#endif
+		return oDiffuse;
+	}
+	
+	float4 ph_zonly(const PS_Input_Ref i) : COLOR
+	{
+		float4	oDiffuse=tex2D(sDiffuse,i.diffuse);
+		return	oDiffuse;
+	}

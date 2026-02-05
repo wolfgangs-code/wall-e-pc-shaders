@@ -1,0 +1,107 @@
+	#include "ground.h"
+	#include "hlsl_shadow.h"
+	
+	void vh_base(const VS_Input i,inout VS_GroundOutput o)
+	{    
+		float2	t00=i.t0001.xy;
+		float2	t01=i.t0001.zw;
+		float2	t10=i.t1011.xy;
+		float2	t11=i.t1011.zw;
+  
+  		//Tweening
+		float4	iPos=WorldToViewVertex(i.position0);
+		float	d=sqrt(dot(iPos.xyz,iPos.xyz));
+		float	tweenf=clamp((d-t01.x)*t01.y*C_INV16384,C_NULL,C_UNIT);
+		float	itweenf=C_UNIT-tweenf;
+      
+		//Interpol Position
+		float4	wPos=i.position0*itweenf+i.position1*tweenf;
+		//Proj
+		float4 oPos=ProjVertex(WorldToViewVertex(wPos));
+		o.position=oPos;
+
+	#ifdef	bOmni
+		o.omni.xyz=mul(wPos,GetMatrix(C_OMNI_0_WORLDTOLOCAL)).xyz*C_HALF+C_HALF;
+	#else
+		o.omni.xyz=C_NULL;
+	#endif
+		
+	#ifdef	bShadowMap
+		o.shadowtcproj=ProjShadow(wPos);
+		#ifdef bShadowMapNoise
+			o.shadowNoiseUv = oPos;
+		#endif
+	#endif
+		//Variables Bump & Specular		
+		SetSpecular(o,(t10.x*itweenf+t10.y*tweenf)*C_INV256);
+		SetBump1Lerp(o,i.color0.w);
+		SetBump2Lerp(o,i.color1.w);
+		
+		//Color Lerp
+		o.color.xyz=i.color0*itweenf+i.color1*tweenf;
+		//Fade
+		o.color.w=itweenf;
+	   
+		//Interpol Compressed Normal	
+		float3	normal0=i.normal0.xyz*C_TWO-C_UNIT;
+		float3	normal1=i.normal1.xyz*C_TWO-C_UNIT;
+		float3	iNormal=normal0*itweenf+normal1*tweenf;
+        
+   	                                 	// Texture Space Coord			
+// 		float3	r9=normalize(float3(iNormal.y,iNormal.x,C_NULL));
+// 		float3	r11=r9.yzx*iNormal.zxy-r9.zxy*iNormal.yzx;
+ 	         	float3	rz2=float3(C_NULL,C_NULL,C_UNIT);
+ 		iNormal=normalize(iNormal);
+	  	float3	rx=rz2.zxy*iNormal.yzx-rz2.yzx*iNormal.zxy;
+	    rx=normalize(rx);  
+	    float3	rz=rx.yzx*iNormal.zxy-rx.zxy*iNormal.yzx;
+	    rz=normalize(rz);   
+ 	    float3x3 mLight=float3x3(	rx.x,iNormal.x,rz.x,
+  	   								rx.y,iNormal.y,rz.y,
+        						 	rx.z,iNormal.z,rz.z);
+                  
+		// Sun, sky and eye vector
+		o.sundir.xyz	= mul(DLIGHT_DIR,mLight);//*(t11.x*itweenf+t11.y*tweenf)*C_INV256;
+		o.skydir.xyz	= mul(DSKY_DIR,mLight);
+	 	o.eyevec.xyz=mul(EYE_WORLD.xyz-wPos.xyz,mLight);
+	 	o.eyevec.w=(t11.x*itweenf+t11.y*tweenf)*C_INV256;
+                     
+		 // Ambient occlusion
+	 	SetOcclusion(o,C_INV256*t00.x);
+              
+		scatteringbase(wPos,C_UNIT,DLIGHT_DIR,o.extinction.xyz,o.inscatter.xyz);
+
+		float2	uv;
+		uv.xy=(i.t1013.xy*itweenf+i.t1013.zw*tweenf)*C_INV256;
+		SetBumpUV(o,uv.x,uv.y);
+		
+		SetDiffuseUV(o,(i.t1012.x*itweenf+i.t1012.z*tweenf)*C_INV4096,(i.t1012.y*itweenf+i.t1012.w*tweenf)*C_INV4096);
+	}          
+               
+	void vh_shadow(const VS_Input_Shadow i,inout VS_Output_ShadowMap o)
+	{
+	#if 1
+	
+	//Version avec interpolation : comme le ShadowSuperGround.vsh
+ 		float2	t00=i.t0001.xy;
+		float2	t01=i.t0001.zw;
+      
+		//Tweening
+		float4	iPos=i.position0-EYE_WORLD;
+	 	float	d=sqrt(dot(iPos.xyz,iPos.xyz));
+		float	tweenf=clamp((d-t01.x)*t01.y*C_INV16384,C_NULL,C_UNIT);
+	 	float	itweenf=C_UNIT-tweenf;
+		float3  vPos=i.position0*itweenf + i.position1*tweenf;
+
+//		float3	normal0=i.normal0.xyz*C_TWO-C_UNIT;
+		
+		o.position = WorldToProjVertex( ReAddShadowBias(float4( vPos, 1.0f )) ) ; 
+		o.uvzw.xyzw=o.position.zzzw;
+		
+	#else	
+	//Sinon
+		o.position=WorldToProjVertex(ReAddShadowBias(i.position0));
+		o.uvzw.xyzw=o.position.zzzw;
+
+	#endif
+	}

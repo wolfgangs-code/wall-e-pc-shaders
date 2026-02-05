@@ -1,0 +1,30 @@
+	#include "ground_water.h"
+	
+	void vh_water(in const VS_Input i,out VS_GroundWaterOutput_Z o)
+	{
+		o.position = WorldToProjVertex(i.position);
+	
+	#ifdef _X360
+		o.zBuffUV = o.position;
+	#endif
+			
+		// Eye vector
+		o.eyevec = normalize(EYE_WORLD.xyz-i.position.xyz)*C_HALF+C_HALF;
+ 
+		o.diffuse = i.color;
+		
+		o.extinction.w = C_NULL;
+		o.inscatter.w = C_NULL;
+		
+		o.lightDir = DLIGHT_DIR;
+		
+		o.uv.xy = i.uv.xy *  C_USER1.z + C_USER1.xy * C_DTIME;
+		o.uv.zw = i.uv.xy *  C_USER2.z + C_USER2.xy * C_DTIME;
+	
+	#ifdef	bShadowMap
+		o.shadowtcproj=ProjShadow(i.position);
+	#endif
+	
+		scattering(i.position,C_UNIT,DLIGHT_DIR,o.extinction.xyz,o.inscatter.xyz,o.sunlight,o.skylight);
+	}
+	

@@ -1,0 +1,33 @@
+ 	#include "ground_rotshape.h"
+	#include "hlsl_shadow.h"
+	
+	float4 ph_base(const VS_GroundRotShapeOutput i) : COLOR0
+	{
+		float2	uv=GetDiffuseUV(i);
+		float4	tDiffuse=tex2D(sDiffuse,uv.xy);
+		tDiffuse.w*=i.color.w;
+
+		float3 eye = normalize(i.eyevec);
+		
+		#ifdef	bShadowMap
+		float shadow = PixelShadow4(i.shadowtcproj);
+		#else
+		float shadow = 1;
+		#endif
+		
+		tDiffuse.xyz=lighting(i.normal.xyz*2-1,
+							i.sundir.xyz,i.skydir.xyz,
+							eye.xyz,
+							i.sunlight.xyz,lerp(gDSkyAmbient.rgb,i.skylight.rgb,GetOcclusion(i)),tDiffuse.rgb*i.color.rgb*2,
+							GetSpecular(i),
+							shadow);
+   
+		tDiffuse.xyz*=i.extinction.xyz;
+		tDiffuse.xyz+=i.inscatter.xyz;
+		#ifdef _X360
+			tDiffuse.xyz = PackHDRSample( tDiffuse.xyz );
+		#endif
+		return	tDiffuse;
+	}
+	 
+	

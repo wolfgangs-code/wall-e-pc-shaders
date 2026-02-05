@@ -1,0 +1,84 @@
+#include "sfx.h"
+
+float4 ph_tornadoclouds(const VS_Tornado_Output i) : COLOR
+{
+    float4 tDiffuse = tex2D(sDiffuse, i.uv);
+//tDiffuse.xyz*=2.;
+	float 	occlusion = 1;
+	float	shadow = 1;
+	float3	eye = normalize(i.eyevec);
+   	float3 lightv = lighting(	i.normal.xyz,
+								gDLight.Dir.xyz,gDSkyDir.xyz,
+								eye.xyz,
+								gDSunColor.xyz,lerp(gDSkyAmbient.rgb,gDSkyColor.rgb,occlusion),		
+								tDiffuse.rgb,		//color vertex	
+								0,	//ou est passé le specular color ??
+								shadow );
+								lightv*=0.5f;
+
+tDiffuse.xyz=lightv;
+	tDiffuse.xyz *= i.extinction.xyz;
+	tDiffuse.xyz += i.inscatter.xyz;
+//	tDiffuse.w*=0.33;
+
+#ifdef _X360
+	PackHDRSample( tDiffuse.xyz );
+#endif
+
+	return tDiffuse;
+}
+
+float4 ph_tornado(const VS_Tornado_Output i) : COLOR
+{
+    float4 tDiffuse = tex2D(sDiffuse, i.uv);
+    
+    
+	float 	occlusion = 1;
+	float	shadow = 1;
+	float3	eye = normalize(i.eyevec);
+   	float3 lightv = lighting(	i.normal.xyz,
+								gDLight.Dir.xyz,gDSkyDir.xyz,
+								eye.xyz,
+								gDSunColor.rgb,lerp(gDSkyAmbient.xyz,gDSkyColor.xyz,occlusion),		
+								tDiffuse.rgb,		//color vertex	
+								0,	//ou est passé le specular color ??
+								shadow );
+
+								lightv*=0.5f;
+	float Width = 0.25;
+	float Softness = 6.0;
+	
+	
+	float4 color;
+
+	float3 lightDir = gDLight.Dir.xyz;
+	float diff = dot(lightDir, i.normal)*1.+1.;
+
+	// fake depth
+	float dotEyeNormal = dot(eye, i.normal);
+	dotEyeNormal = lerp(dotEyeNormal, abs(dotEyeNormal), i.params.y);
+	float depth = Width * dotEyeNormal;
+	float transparency = 1-dotEyeNormal;
+	float	velourlight=pow(transparency, 1.5);
+	velourlight=diff+velourlight*3;
+	transparency=pow(transparency, 1.25);
+	transparency=clamp(((transparency-0.3)*1.45),0,1);
+	float	fadeout=sqrt(dot(i.eyevec,i.eyevec));
+	fadeout=clamp(fadeout,0,1);
+
+	tDiffuse.w*=i.params.x * fadeout * (1 - transparency);
+
+	tDiffuse.xyz =lightv*velourlight;
+	tDiffuse.xyz *= i.extinction.xyz;
+	tDiffuse.xyz += i.inscatter.xyz;
+
+#ifdef _X360
+	PackHDRSample( tDiffuse.xyz );
+#endif
+
+//   color = float4(diffuse, texColor.a * transparency);
+    
+	//return tDiffuse;
+	return float4(1,0,0,1);
+}
+

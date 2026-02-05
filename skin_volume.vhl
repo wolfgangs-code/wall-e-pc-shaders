@@ -1,0 +1,50 @@
+	#include "skin.h"
+
+
+	struct VS_Input_Volume {
+		float4	pt0			: POSITION0;
+		float4	pt1			: POSITION1;
+		float4	pt2			: POSITION2;
+		float4	blend		: POSITION3;	//CachePt0,CachePt1,CachePt2 Blend Matrices
+	};
+
+	VS_Output_Volume	vh_volume(const VS_Input_Volume i)
+	{
+		VS_Output_Volume o;
+		
+		// Skin vertex
+		float3 v0 = BlendPos(i.pt0, i.blend.x, C_UNIT);
+		float3 v1 = BlendPos(i.pt1, i.blend.y, C_UNIT);
+		float3 v2 = BlendPos(i.pt2, i.blend.z, C_UNIT);
+		
+		// Compute face normal
+		float3 normal = cross(v1-v2,v1-v0);
+		normal = normalize(normal);
+		
+		// Compute extrusion direction
+		float3	dirlight = C_VOLEXT_LIGHTPOS;
+		float3	omnilight = C_VOLEXT_LIGHTPOS-v0;
+		float3	extrudeDir = normalize(dirlight*C_VOLEXT.y + omnilight*C_VOLEXT.z );
+		float	dist = length(omnilight);
+		
+		// Determine if the vert needs to be extruded
+		float4	newPos; 
+		newPos.xyz = v0;
+		newPos.w = C_UNIT;
+		float	facing = dot(extrudeDir, normal);
+		
+		// Extrude vertex = v_pos-extrudelen*extrudedir
+//Marche pas, ancien demo ttk, a garder !		
+//		if(facing<C_NULL)
+//			newPos.xyz = newPos-extrudeDir*(C_VOLEXT.x-dist);
+		
+		if(facing<C_NULL)
+			newPos.xyz = newPos+extrudeDir*C_VOLEXT.y;
+
+		// Project vertex
+		o.position = ProjectVertex(newPos);
+				
+		// Light color (for debug)
+		o.color = C_VOLEXT_LIGHTCOL;
+		return o;
+	}

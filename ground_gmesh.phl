@@ -1,0 +1,30 @@
+	#include "ground_gmesh.h"
+	#include "hlsl_shadow.h" 
+          
+	float4 ph_base(const VS_GroundOutput i) : COLOR0
+	{
+		float2	uv=GetDiffuseUV(i);
+		float4	tDiffuse = tex2D(sDiffuse,uv.xy);
+		
+	#ifdef bShadowMap		
+		float	shadow = PixelShadow4(i.shadowtcproj);
+	#else
+		float	shadow = 1; //0
+	#endif
+  
+		tDiffuse.xyz=lighting(i.normal.xyz,
+						i.sundir.xyz,i.skydir.xyz,
+						i.sundir.xyz,
+						i.sunlight.rgb,lerp(gDSkyAmbient.rgb,i.skylight.rgb,i.color.w),i.color.rgb,
+						0,
+						shadow );
+						
+		tDiffuse.xyz *= i.extinction.xyz;
+		tDiffuse.xyz += i.inscatter.xyz;
+		#ifdef _X360
+			tDiffuse.xyz = PackHDRSample( tDiffuse.xyz );
+		#endif
+		tDiffuse.w = i.color.w;
+		return	tDiffuse;
+	}
+	   

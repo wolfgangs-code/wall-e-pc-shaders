@@ -1,0 +1,222 @@
+	#include "patch.h"
+
+
+	void vh_base(const VS_Input_Patch i, inout VS_Output o)
+	{
+		float3	r0=control(i,PATCH_A0,PATCH_B0,PATCH_C0,PATCH_D0);
+		float3	r1=control(i,PATCH_A1,PATCH_B1,PATCH_C1,PATCH_D1);
+		float3	r2=control(i,PATCH_A2,PATCH_B2,PATCH_C2,PATCH_D2);
+		float3	r3=control(i,PATCH_A3,PATCH_B3,PATCH_C3,PATCH_D3);
+		
+		float4	position=position(i,r0,r1,r2,r3);
+
+		float4	uv=interpol_xyzw(i,PATCH_UV0,PATCH_UV1_S0,PATCH_UV2_A0_S1_S3,PATCH_UV3_S0);
+		float3	normal=interpol_xyz(i,PATCH_NORMAL0,PATCH_NORMAL1_S0,PATCH_NORMAL2_A0_S1_S3,PATCH_NORMAL3_S0);
+//		float3	color=interpol_xyz(i,PATCH_COLOR0,PATCH_COLOR1_S0,PATCH_COLOR2_A0_S1_S3,PATCH_COLOR3_S0);
+#ifndef	bVLight
+		float4	tangent;
+		tangent.xyz=interpol_xyz(i,PATCH_TG0,PATCH_TG1_S0,PATCH_TG2_A0_S1_S3,PATCH_TG3_S0);
+		tangent.w=PATCH_TG0.w;
+#endif
+
+		BaseMaterial(float2(uv.x,uv.y),float2(uv.z,uv.w),o.TexCoord);
+	
+		o.fog		= Fog(position);
+		float4		wPos;
+		o.position	= WorldAndProjectVertex(position,wPos);
+#ifdef bEnvmap
+		o.envmap	= Envmap(normal.xyz,position,o.position);
+#endif
+		
+#ifdef	bVLight
+		VertexLighting(position,normal,o);
+#else
+		//Tangent Space (la tangent n est pas compressé donc FALSE !)
+		float3x3 mLight	= LightMat(tangent,normal,false);
+		OutTexSpace(o.TexSpace,mLight,position,normal);
+		
+	#ifdef	bSpecular
+		o.eyevec	= EYE_LOCAL.xyz-position.xyz;
+	#endif
+	#ifdef	bOmni		
+		o.omnitcproj= ProjSpotLight0(wPos);
+	#endif
+#endif
+	}
+	
+#ifndef	bVLight
+	//passe additive omni
+	void vh_base_omni(const VS_Input_Patch i, inout VS_Output_Omni o)
+	{
+		float3	r0=control(i,PATCH_A0,PATCH_B0,PATCH_C0,PATCH_D0);
+		float3	r1=control(i,PATCH_A1,PATCH_B1,PATCH_C1,PATCH_D1);
+		float3	r2=control(i,PATCH_A2,PATCH_B2,PATCH_C2,PATCH_D2);
+		float3	r3=control(i,PATCH_A3,PATCH_B3,PATCH_C3,PATCH_D3);
+		
+		float4	position=position(i,r0,r1,r2,r3);
+
+		float4	uv=interpol_xyzw(i,PATCH_UV0,PATCH_UV1_S0,PATCH_UV2_A0_S1_S3,PATCH_UV3_S0);
+		float3	normal=interpol_xyz(i,PATCH_NORMAL0,PATCH_NORMAL1_S0,PATCH_NORMAL2_A0_S1_S3,PATCH_NORMAL3_S0);
+		float4	tangent;
+		tangent.xyz=interpol_xyz(i,PATCH_TG0,PATCH_TG1_S0,PATCH_TG2_A0_S1_S3,PATCH_TG3_S0);
+		tangent.w=PATCH_TG0.w;
+
+		BaseMaterial(float2(uv.x,uv.y),float2(uv.z,uv.w),o.TexCoord);
+		float4		wPos;
+		o.position	= WorldAndProjectVertex(position,wPos);
+		
+		//Tangent Space
+		float3x3 mLight	= LightMat(tangent,normal,false);
+		OutTexSpace(o.TexSpace,mLight,position,normal);
+	#ifdef	bSpecular
+		o.eyevec	= EYE_LOCAL.xyz-position.xyz;
+	#endif
+	#ifdef	bOmni
+		Out_Omnis(o,wPos);
+	#endif
+	}
+#endif
+	
+	float4	vh_shadow() : POSITION
+	{
+		return float4(0,0,0,0);
+	}
+/*
+	void vh_shadow(const VS_Input_Patch i)//, out VS_Output o)
+	{ 
+		float3	r0=control(i,PATCH_A0,PATCH_B0,PATCH_C0,PATCH_D0);
+		float3	r1=control(i,PATCH_A1,PATCH_B1,PATCH_C1,PATCH_D1);
+		float3	r2=control(i,PATCH_A2,PATCH_B2,PATCH_C2,PATCH_D2);
+		float3	r3=control(i,PATCH_A3,PATCH_B3,PATCH_C3,PATCH_D3);
+		
+		float4	position=position(i,r0,r1,r2,r3);
+		float4	wposition;
+
+		o.position	= WorldAndProjectVertex(position,wposition);
+		
+		//Uv World to Local Shadow
+		wposition.x+=C_SHADOW_CONTEXT_AXE_X.w;
+		wposition.z+=C_SHADOW_CONTEXT_AXE_Z.w;
+		o.diffuse.x=dot(wposition,C_SHADOW_CONTEXT_AXE_X)+C_HALF;
+		o.diffuse.y=dot(wposition,C_SHADOW_CONTEXT_AXE_Z)+C_HALF;
+
+//		o.diffuse=C_HALF;
+		o.light		= C_SHADOW_CONTEXT_COLOR;
+		o.light.xyz=C_UNIT;
+		o.fog		= C_NULL;
+	}
+*/
+#ifndef	bVLight
+	void vh_refraction(const VS_Input_Patch i, out VS_Output_Ref o)
+	{
+		float3	r0=control(i,PATCH_A0,PATCH_B0,PATCH_C0,PATCH_D0);
+		float3	r1=control(i,PATCH_A1,PATCH_B1,PATCH_C1,PATCH_D1);
+		float3	r2=control(i,PATCH_A2,PATCH_B2,PATCH_C2,PATCH_D2);
+		float3	r3=control(i,PATCH_A3,PATCH_B3,PATCH_C3,PATCH_D3);
+		
+		float4	position=position(i,r0,r1,r2,r3);
+
+		float4	uv=interpol_xyzw(i,PATCH_UV0,PATCH_UV1_S0,PATCH_UV2_A0_S1_S3,PATCH_UV3_S0);
+		float3	normal=interpol_xyz(i,PATCH_NORMAL0,PATCH_NORMAL1_S0,PATCH_NORMAL2_A0_S1_S3,PATCH_NORMAL3_S0);
+		float4	tangent;
+		tangent.xyz=interpol_xyz(i,PATCH_TG0,PATCH_TG1_S0,PATCH_TG2_A0_S1_S3,PATCH_TG3_S0);
+		tangent.w=PATCH_TG0.w;
+		
+		o.position	= ProjectVertex(position);
+		o.uv		= uv.xy;
+		o.diffuse.xy= MaterialMat(uv.xy);
+		o.diffuse.zw= RadTexCoord(uv.zw);
+		o.projpos	= o.position;
+
+	#ifdef	bEnvmap
+		o.envmap	= Envmap(normal,position,o.projpos);
+	#endif
+		//Tangent Space
+		float3x3 mLight	= LightMat(tangent,normal,false);
+	#ifndef	bNormal
+		o.normal	= mul(normal,mLight);
+	#endif
+		//Lighting Pixel or Vertex
+		o.light		= mul(DLIGHT_DIR,mLight)*C_HALF+C_HALF;
+	#ifdef	bSpecular
+		o.eyevec	= mul((EYE_LOCAL.xyz-position.xyz),mLight);
+	#endif
+	}
+#endif
+
+	void vh_water(const VS_Input_Patch i, const float4 hmap : POSITION4, out VS_Output_Water o)
+	{
+		float3	r0=control(i,PATCH_A0,PATCH_B0,PATCH_C0,PATCH_D0);
+		float3	r1=control(i,PATCH_A1,PATCH_B1,PATCH_C1,PATCH_D1);
+		float3	r2=control(i,PATCH_A2,PATCH_B2,PATCH_C2,PATCH_D2);
+		float3	r3=control(i,PATCH_A3,PATCH_B3,PATCH_C3,PATCH_D3);
+		
+		float4	position=position(i,r0,r1,r2,r3);
+		float4	uv=interpol_xyzw(i,PATCH_UV0,PATCH_UV1_S0,PATCH_UV2_A0_S1_S3,PATCH_UV3_S0);
+		
+		// Get normal from heightmap
+		float3	normal=hmap.xyz;	//interpol_xyz(i,PATCH_NORMAL0,PATCH_NORMAL1_S0,PATCH_NORMAL2_A0_S1_S3,PATCH_NORMAL3_S0);
+		position.y += hmap.w;
+
+		o.position = ProjectVertex(position);
+		o.fog = Fog(position);
+
+/*		
+#ifndef bVLight
+
+		o.diffuse.xy = MaterialMat(float2(uv.x,uv.y));
+		o.radiosity.xy = uv.zw;
+		o.normal = normal*C_HALF+C_HALF;
+		o.eye = EYE_LOCAL.xyz-position.xyz;
+
+		o.tScreen = o.position;
+
+#else
+*/
+
+		// Pass 0
+		o.diffuse.xy = MaterialMat(float2(uv.x,uv.y));
+		o.radiosity.xy = uv.zw;
+		
+		// Apply dlight
+		o.color.w = MTL_EMISSIVE.w*GOURAUD_DFLT.w;
+	#ifndef	bNoDLight
+		half4	dl=(max(C_NULL,dot(DLIGHT_DIR,normal)))*DLIGHT_COLOR+DLIGHT_AMBIENT;
+		o.color.xyz = (dl*MTL_DIFFUSE+MTL_EMISSIVE)*GOURAUD_DFLT;
+	#else
+		o.color.xyz = C_NULL;
+	#endif
+		
+		//o.color.xyz = normal*C_HALF+C_HALF;
+		
+		// Pass 1
+		half3	eye = EYE_LOCAL.xyz-position.xyz;
+		half3	eye_normalized = normalize(eye);
+		
+		// Add reflection
+		half	eye_dot_norm = saturate(dot(eye_normalized,normal));
+		
+		// Fresnel term
+		half	fresnel = 1-eye_dot_norm;
+		fresnel = fresnel*fresnel;
+		fresnel = fresnel*fresnel;
+		
+		// Reflection = 2*(E.N)*N-E
+		half3	reflect = 2*eye_dot_norm*normal-eye_normalized;
+		o.reflection = reflect.xz*C_HALF+C_HALF;
+		o.fresnel.xyz = fresnel*MTL_PARAMS.w+MTL_PARAMS.z;
+
+//#endif
+	}
+
+	void vh_zonly(const VS_Input_Patch i, out float4 oPosition : POSITION)
+	{
+		float3	r0=control(i,PATCH_A0,PATCH_B0,PATCH_C0,PATCH_D0);
+		float3	r1=control(i,PATCH_A1,PATCH_B1,PATCH_C1,PATCH_D1);
+		float3	r2=control(i,PATCH_A2,PATCH_B2,PATCH_C2,PATCH_D2);
+		float3	r3=control(i,PATCH_A3,PATCH_B3,PATCH_C3,PATCH_D3);
+		float4	position=position(i,r0,r1,r2,r3);
+		oPosition=ProjectVertex(position);
+	}
+	
+	

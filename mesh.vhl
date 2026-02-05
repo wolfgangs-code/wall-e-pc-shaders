@@ -1,0 +1,210 @@
+	#include "mesh.h"
+ 
+	//passe de base, avec 1 omni
+	void vh_base(const VS_Input i,inout VS_Output o)
+	{
+		BaseMaterial(i.uv,i.luv,o.TexCoord);
+	
+		float3	normal=i.normal*C_TWO-C_UNIT;
+		o.fog		= Fog(i.position);
+		float4		wPos;
+		float4 oPos=WorldAndProjectVertex(i.position,wPos);
+		o.position=oPos;
+	#ifdef	bShadowMap
+		wPos.w=C_UNIT;
+		o.shadowtcproj=ProjShadow(wPos);
+		#ifdef _X360
+			o.shadowNoiseUv=oPos; 
+		#endif
+	#endif
+#ifdef	bEnvmap
+		o.envmap	= Envmap(normal,i.position,o.position);
+#endif 
+
+#ifdef	bBlendScreen
+		o.projpos	= o.position;
+#endif
+	
+#ifdef	bVLight
+		VertexLighting(i.position,normal,o);
+	#ifdef	bGouraud
+		#ifdef	bYellowGouraud
+			o.light.xy	=	C_UNIT;
+			o.light.z	=	C_NULL;
+		#else
+			o.light.xyz*=i.color.xyz;
+		#endif
+	#endif
+#else	
+		//Tangent Space
+		float3x3 mLight	= LightMat(i.tangent,normal);
+		OutTexSpace(o.TexSpace,mLight,i.position,normal);
+		
+		//Lighting Pixel or Vertex
+	#ifdef	bSpecular
+		o.eyevec	= EYE_LOCAL.xyz-i.position.xyz;
+	#endif
+	#ifdef	bOmni		
+		o.omnitcproj= ProjSpotLight0(wPos);
+	#endif
+#ifdef	bGouraud
+	#ifdef	bYellowGouraud
+		o.color.xy	=	C_UNIT;
+		o.color.z	=	C_NULL;
+	#else
+		o.color		=	i.color;
+	#endif
+#endif
+#endif
+	}
+
+	//avec rotshape
+	void vh_rbase(const VS_Input i,inout VS_Output o)
+	{
+		BaseMaterial(i.uv,i.luv,o.TexCoord);
+	
+		float3	normal=i.normal*C_TWO-C_UNIT;
+		o.fog		= Fog(i.position);
+		float4		wPos=WorldVertex(i.position);
+		float3		AxeX=float3(c[C_WORLD_CONTEXT].x,c[C_WORLD_CONTEXT+1].x,c[C_WORLD_CONTEXT+2].x);
+		float		Scale=sqrt(dot(AxeX,AxeX));
+		float3		lPos=(CAM_WSIDE*i.luv.x*Scale+CAM_WUP*i.luv.y*Scale);
+		wPos.xyz+=lPos;
+		float4		vPos=ViewVertex(wPos);
+		o.position	= ProjVertex(vPos);
+	#ifdef	bShadowMap
+		wPos.w=C_UNIT;
+		o.shadowtcproj=ProjShadow(wPos);
+	#endif
+#ifdef	bEnvmap
+		o.envmap	= Envmap(normal,i.position,o.position);
+#endif 
+
+#ifdef	bBlendScreen
+		o.projpos	= o.position;
+#endif
+	
+#ifdef	bVLight
+		VertexLighting(i.position,normal,o);
+	#ifdef	bGouraud
+		o.light.xyz*=i.color.xyz;
+	#endif
+#else	
+		//Tangent Space
+		float3x3 mLight	= LightMat(i.tangent,normal);
+		OutTexSpace(o.TexSpace,mLight,i.position,normal);
+		
+		//Lighting Pixel or Vertex
+	#ifdef	bSpecular
+		o.eyevec	= EYE_LOCAL.xyz-i.position.xyz;
+	#endif
+	#ifdef	bOmni		
+		o.omnitcproj= ProjSpotLight0(wPos);
+	#endif
+#ifdef	bGouraud
+		o.color		=	i.color;
+#endif
+#endif
+	}
+	
+#ifndef	bVLight
+	//passe additive omni
+	void vh_base_omni(const VS_Input i, inout VS_Output_Omni o)
+	{
+		BaseMaterial(i.uv,i.luv,o.TexCoord);
+
+		float4		wPos;
+		o.position	= WorldAndProjectVertex(i.position,wPos);
+
+		float3	normal=i.normal*C_TWO-C_UNIT;
+		//Tangent Space
+		float3x3 mLight	= LightMat(i.tangent,normal);
+		OutTexSpace(o.TexSpace,mLight,i.position,normal);
+
+#ifdef	bSpecular
+		o.eyevec	= EYE_LOCAL.xyz-i.position.xyz;
+#endif
+
+#ifdef	bOmni
+		Out_Omnis(o,wPos);
+#endif
+	}
+#endif
+
+#ifndef	bVLight
+	void vh_refraction(const VS_Input i, inout VS_Output_Ref o)
+	{
+		o.position	= ProjectVertex(i.position);
+		o.uv		= i.uv;
+		o.diffuse.xy= MaterialMat(i.uv);
+		o.diffuse.zw= RadTexCoord(i.luv);
+
+		o.projpos	= o.position;
+		float3	normal=i.normal*C_TWO-C_UNIT;
+	#ifdef	bEnvmap
+		o.envmap	= Envmap(normal,i.position,o.projpos);
+	#endif
+		//Tangent Space
+		float3x3 mLight	= LightMat(i.tangent,normal);
+	#ifndef	bNormal
+		o.normal	= mul(normal,mLight);
+	#endif
+		o.light		= mul(DLIGHT_DIR.xyz,mLight);
+	#ifdef	bSpecular
+		o.eyevec	= EYE_LOCAL.xyz-i.position.xyz;
+	#endif
+	}
+
+#endif
+
+	void vh_water(const VS_Input i, const float4 hmap : POSITION4, out VS_Output_Water o)
+	{
+		// Get normal from heightmap
+		float3	normal = hmap.xyz;
+		
+		// Displace vertex		
+		float4	position;
+		position.xzw = i.position.xzw;
+		position.y = i.position.y + hmap.w;
+
+		o.position = ProjectVertex(position);
+		o.fog = Fog(i.position);
+
+		// Apply UV displacement with vertex normal
+		float2 uv = MaterialMat(float2(i.uv.x,i.uv.y)) + 0.01f*MTL_SPECULAR.w*normal.xz;
+
+		// Pass 0
+		o.diffuse.xy = uv;
+		o.radiosity.xy = i.luv;
+		
+		// Apply dlight
+		o.color.w = MTL_EMISSIVE.w*GOURAUD_DFLT.w;
+	#ifndef	bNoDLight
+		half4	dl=(max(C_NULL,dot(DLIGHT_DIR,normal)))*DLIGHT_COLOR+DLIGHT_AMBIENT;
+		o.color.xyz = (dl*MTL_DIFFUSE+MTL_EMISSIVE)*GOURAUD_DFLT;
+	#else
+		o.color.xyz = C_NULL;
+	#endif
+		
+		// Pass 1
+		half3	eye = EYE_LOCAL.xyz-position.xyz;
+		half3	eye_normalized = normalize(eye);
+		
+		// Add reflection
+		half	eye_dot_norm = saturate(dot(eye_normalized,normal));
+		
+		// Fresnel term
+		half	fresnel = 1-eye_dot_norm;
+		fresnel = fresnel*fresnel;
+		fresnel = fresnel*fresnel;
+		
+		// Reflection = 2*(E.N)*N-E
+		half3	reflect = 2*eye_dot_norm*normal-eye_normalized;
+		o.reflection = reflect.xz*C_HALF+C_HALF;
+		o.fresnel.xyz = fresnel*MTL_PARAMS.w+MTL_PARAMS.z;
+	}
+	
+	void vh_zonly(const float4 iPosition : POSITION, out float4 oPosition : POSITION)
+	{
+		oPosition=ProjectVertex(iPosition);
+	}

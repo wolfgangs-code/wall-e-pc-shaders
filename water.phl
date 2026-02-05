@@ -1,0 +1,103 @@
+	#include "hlsl_math.h"
+
+	// Pixel shader for the ocean
+	sampler sBump;//	: register(s0);
+	sampler sRefl;//	: register(s1);
+	sampler sSky;//		: register(s2);
+	sampler	sWaterBump;
+	
+	struct VS_Output_Ocean {
+		float4 position : POSITION0;
+		float4 color : COLOR0;
+	};
+	
+	// L'ocean
+	VS_Output_Ocean	vh_ocean()
+	{
+		VS_Output_Ocean o;
+		o.position = 0.f;
+		o.color = 0.f;
+		return o;
+	}
+	
+	float4 ph_ocean(float2 tBump : TEXCOORD0,
+					float4 tLocalRefl : TEXCOORD1,
+					float3 tNormal : TEXCOORD5,
+					float3 tEye : TEXCOORD2,
+					float3 tRefl : TEXCOORD7) : COLOR0
+	{
+		return float4(0,0,1,1);
+		/*
+		float4 oDiffuse;
+		float3 dLightDir = float3(-1.f,-0.4,0);
+		dLightDir = normalize(-dLightDir);
+
+		// Apply normal mapping
+		float3 bump = tex2D(sBump,tBump)*2.f - float3(1.f,1.f,1.f);
+			   bump *= 0.02f;
+			   
+		// Perturbate normal
+		tNormal += bump;
+
+		// Compute reflection vector
+		//tEye = normalize(-tEye);
+		tRefl = reflect(-tEye,tNormal);
+		
+		// Compute LocalReflection UV
+		tLocalRefl.xy = (tLocalRefl.xy / tLocalRefl.w)*float2(0.5f,-0.5f) + 0.5f;
+		
+		float4 oReflect = float4(0,0,0,1);
+		float4 oRefract = float4(0.0,0.0,0.25,0.7);
+		
+		// Sky and local reflections
+		float3 skymap = texCUBE(sSky,tRefl);
+		tLocalRefl.x += bump.x;
+		tLocalRefl.y += bump.z;
+		float4 local  = tex2D(sRefl,tLocalRefl);
+		oReflect.xyz = lerp(skymap, local.xyz, local.w);
+
+		// Fresnel term (blend between refraction and reflection)
+		float fNdotV = saturate( dot( normalize(tEye), tNormal ) ); // Fresnel term
+		float fFresnel = pow( 1.0 - fNdotV, 5 );
+		oDiffuse = lerp( oRefract, oReflect, fFresnel );
+		
+		// Specular highlight (Phong model)
+		float3 specular_vector= max(0, dot( normalize(tRefl+2000*bump), dLightDir));
+		float  specular_level = pow( specular_vector, 92);
+		float3 specular_color = float3(1.f,1.f,1.f);
+		oDiffuse.xyz += specular_color*specular_level;
+
+		return oDiffuse;
+		*/
+	}
+	
+	// Les petites flaques ou les piscines
+	float4 ph_water(const PS_Input_Water i) : COLOR0
+	{
+		half4	color;
+		
+		// Pass 0
+		color.rgb = i.color.rgb*tex2D(sDiffuse,i.diffuse.xy).rgb*2;
+		color.a = i.color.a*tex2D(sDiffuse,i.diffuse.xy).a;
+		
+		// Pass 1
+	#ifdef bEnvmap
+		half3	refCol  = tex2D(sEnvmap,i.reflection);
+	#else
+		half3	refCol  = half3(0.5,0.5,0.5);//tex2D(sDiffuse,i.reflection);
+	#endif
+
+		color.xyz = lerp(color.xyz,refCol,i.fresnel.x);
+		
+		// Add lightmap
+	#ifdef bRadiosity
+		color.rgb *= tex2D(sRadiosityMap,i.radiosity.xy).rgb;
+	#endif
+		
+		// Fog
+	#ifndef	bNoFog
+		color.xyz = lerp(color.xyz,i.fog.xyz,i.fog.w);
+	#endif
+
+		return color;
+	}

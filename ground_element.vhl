@@ -1,0 +1,35 @@
+   	#include "ground_element.h"
+	#include "hlsl_shadow.h"
+   
+	void vh_base(const VS_Input i,inout VS_GroundOutput o)
+	{
+		float4 iPos = WorldToViewVertex(i.position0);
+		o.position = ProjVertex(iPos);
+	#ifdef	bShadowMap
+		o.shadowtcproj=ProjShadow(i.position0);
+	#endif
+		// Gouraud
+		o.color = i.color;
+ 		// Eye vector
+		float3 eye = normalize(EYE_WORLD.xyz-i.position0.xyz);
+		        
+		// Compute texture space lighting vector
+	 	float3	n0 = i.normal0.xyz*C_TWO-C_UNIT;
+		float3	n1 = i.position1.xyz*C_TWO-C_UNIT;
+		float3	n2 = i.normal1.xyz*C_TWO-C_UNIT;
+    
+	  	o.eyevec = float3( dot(n1,eye), dot(n0,eye), dot(n2,eye) )*C_HALF+C_HALF;
+		o.sundir = float3( dot(n1,DLIGHT_DIR), dot(n0,DLIGHT_DIR), dot(n2,DLIGHT_DIR) );
+		o.skydir = float3( dot(n1,DSKY_DIR), dot(n0,DSKY_DIR), dot(n2,DSKY_DIR) );
+  
+		scattering(i.position0,C_UNIT,DLIGHT_DIR,o.extinction.xyz,o.inscatter.xyz,o.sunlight,o.skylight);
+
+		//Texture Coord
+		SetDiffuseUV(o,i.t0.x*C_GROUND_INVTEXSCALE,i.t0.y*C_GROUND_INVTEXSCALE);
+	}
+
+	void vh_shadow(const VS_Input_Shadow i,inout VS_Output_ShadowMap o)
+	{
+		o.position=WorldToProjVertex(ReAddShadowBias(i.position0));
+		o.uvzw.xyzw=o.position.zzzw;
+	}

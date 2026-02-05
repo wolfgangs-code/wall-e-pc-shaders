@@ -1,0 +1,43 @@
+	#include "skin.h"
+	#include "car.h"
+	
+	void vh_blend1(const VS_Input_1Blend i, inout VS_Output_Car o)
+	{
+		VS_Output_Blended	b;
+		Blend1(i,i.position,b);
+
+		float4	wPos;
+		o.position	= WorldAndProjectVertex(b.position,wPos);
+	#ifdef	bShadowMap
+		wPos.w=C_UNIT;
+		o.shadowtcproj=ProjShadow(wPos);
+	#endif
+		
+		o.uv		=MaterialMat(i.uv);
+		o.normal	=b.normal;
+		o.light		=DLIGHT_DIR;
+		o.sky.xyz	=DSKY_DIR;
+		o.eyevec.xyz	=EYE_LOCAL.xyz-b.position.xyz;
+		scattering(wPos,o.extinction,o.inscatter);
+	}
+	
+	void vh_blend4(const VS_Input_4Blend i,inout VS_Output_Car o)
+	{
+		VS_Output_Blended	b;
+		Blend4(i,i.position,b);
+
+		float4	wPos;
+		o.position	= WorldAndProjectVertex(b.position,wPos);
+	#ifdef	bShadowMap
+		wPos.w=C_UNIT;
+		o.shadowtcproj=ProjShadow(wPos);
+	#endif
+
+		o.uv		=MaterialMat(i.uv);
+		o.normal	=b.normal;
+		o.light		=DLIGHT_DIR;
+		o.sky.xyz	=DSKY_DIR;
+		o.eyevec.xyz	=EYE_LOCAL.xyz-b.position.xyz;
+		scattering(wPos,o.extinction,o.inscatter);
+	}
+	

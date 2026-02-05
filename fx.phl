@@ -1,0 +1,267 @@
+#ifdef _X360
+	const float		gDeltaTime;		//Frame delta time
+
+	float4	gHDRSettings;
+
+	float3 UnpackHDRSample( float4 packedHDR )
+	{
+		//packedHDR.rgb = min( packedHDR.rgb, 254.0f / 255.0f );
+		return float3(	packedHDR.r / (1.000001f - packedHDR.r),
+						packedHDR.g / (1.000001f - packedHDR.g),
+						packedHDR.b / (1.000001f - packedHDR.b) ) * gHDRSettings.w;
+	}
+#else
+	#include "hlsl_math.h"
+#endif
+
+	// The per-color weighting to be used for luminance calculations in RGB order.
+	//static const float3 LUMINANCE_VECTOR  = float3(0.3f, 0.59f, 0.11f);
+	static const float3 LUMINANCE_VECTOR  = float3(0.27f, 0.67f, 0.06f);
+	static const float3 BLACKWHITE_VECTOR  = float3(0.2125f, 0.7154f, 0.0721f);
+	
+	// Sampling offsets and weights for filter kernels
+	float2		gSampleOffset[16];
+	float		gSampleWeight[16];
+
+	sampler2D	sAdaptedLuminance;
+	sampler2D	s0 : register(s0);
+	sampler2D	s1 : register(s1);
+	sampler2D	s2 : register(s2);
+	sampler2D	s3 : register(s3);
+	sampler2D	s4 : register(s4);
+	sampler2D	s5 : register(s5);
+	sampler2D	s6 : register(s6);
+
+	// Luminance computation
+	//-------------------------------------------------------
+
+	float4 ph_lumlogavg(in float2 vScreenPosition : TEXCOORD0) : COLOR0
+	{
+		float3 vSample = 0.0f;
+		float  fLumSum = 0.0f;
+
+#ifdef _X360
+		[unroll]
+#endif
+		for(int iSample = 0; iSample < 4; iSample++)
+		{
+			// Compute the sum of log(luminance) throughout the sample points
+			#ifdef _X360
+				vSample = UnpackHDRSample( tex2D(s0, vScreenPosition+gSampleOffset[iSample]) );
+			#else
+				vSample = tex2D(s0, vScreenPosition+gSampleOffset[iSample]).rgb;
+			#endif
+			float Lum = dot(vSample, LUMINANCE_VECTOR);
+
+			//TODO pour blinder pour la milestone, mais c pas top ...
+		//	if( !isnan( Lum ) )
+			//fLumSum += sqrt(Lum+0.0000001f);
+			Lum=clamp(Lum,0.0001f,10000.f);
+			fLumSum += log(Lum);//+0.0000001f);
+		}
+	    
+		// Divide the sum to complete the average
+		fLumSum /= 4;
+		return float4(fLumSum, fLumSum, fLumSum, 1.0f);
+	}
+	
+	float4 ph_lumavg(in float2 vScreenPosition : TEXCOORD0) : COLOR0
+	{
+		float vSample = 0.0f;
+#ifdef _X360
+		[unroll]
+#endif
+		for(int iSample = 0; iSample < 4; iSample++)
+			vSample += tex2D(s0, vScreenPosition+gSampleOffset[iSample]).r;
+	    
+		vSample /= 4;
+		return float4(vSample,vSample,vSample,1);
+	}
+
+
+#ifdef _X360
+	#define	SCREENLUMINANCE	gHDRSettings.y
+#else
+	#define	SCREENLUMINANCE	1.4f
+#endif
+
+	float4	ph_lumadaptation(in float2 vScreenPosition : TEXCOORD0) : COLOR0
+	{
+		float currentLum = tex2D(s0,float2(0.5,0.5)).x;
+		float adaptedLum = 1/tex2D(s1,float2(0.5,0.5)).x;
+		currentLum = SCREENLUMINANCE*exp(currentLum);//*currentLum;
+		adaptedLum = (adaptedLum-currentLum)*gDeltaTime.x+currentLum;
+		return 1/adaptedLum;
+		//return 1/currentLum;
+	}
+	
+	float4	ph_lumadaptationinit(in float2 vScreenPosition : TEXCOORD0) : COLOR0
+	{
+		float currentLum = tex2D(s0,float2(0.5,0.5)).x;
+		currentLum = SCREENLUMINANCE*exp(currentLum);//*currentLum;
+		return 1/currentLum;
+	}
+
+
+
+	//	Tone mapping
+	//-------------------------------------------------------
+	const float4	gToneMapping;
+	#define _gToneGrayLevel	gToneMapping.x
+	#define _gToneWhiteLevel	gToneMapping.y
+	const float4	gBlueShift;
+//	static float gToneGrayLevel	 = 0.75f;
+//	static float gToneWhiteLevel = 1.f;
+
+	static float cDodging = 0.f;
+	static float cBlueShiftFactor = 0.01f;
+	
+	// Adapt luminance of the scene
+	float4 ph_tonemapping(in float2 vScreenPosition : TEXCOORD0) : COLOR0
+	{
+		float4	vSample = tex2D(s0,vScreenPosition);
+
+		#ifdef _X360		
+			vSample.rgb = UnpackHDRSample( vSample );
+		#endif
+		
+		float	fAdaptedLum = tex2D(s1,float2(0.5f,0.5f)).x;
+		float3	vBloom0 = tex2D(s2, vScreenPosition).rgb;
+		float3	vBloom1 = tex2D(s3, vScreenPosition).rgb;
+		float3	vBloom2 = tex2D(s4, vScreenPosition).rgb;
+		
+		// Blue shift
+		float3 blackandwhite = dot(vSample.rgb,BLACKWHITE_VECTOR);
+		float3 blue = gBlueShift*blackandwhite;
+		float3 blueAmount = 1 - min(1,gBlueShift.w*blackandwhite);
+			   blueAmount = blueAmount*blueAmount;
+		vSample.rgb = lerp(vSample.rgb,blue,blueAmount);
+
+		// Dodging and lum adaptation
+		vSample.rgb = vSample.rgb*fAdaptedLum+cDodging;
+		
+		// Blend with bloom
+		vSample.rgb = vSample.rgb+10*(vBloom0+vBloom1+vBloom2);
+		
+		// Map the high range of color values into a range appropriate for display
+		float3	tone = 1/(vSample.rgb*_gToneGrayLevel+_gToneWhiteLevel);
+
+		vSample.rgb = vSample.rgb*tone;
+		
+		// Lerp between black and white and color buffer
+		//blackandwhite = dot(tone,BLACKWHITE_VECTOR);
+		//vSample.rgb = lerp(blackandwhite,vSample.rgb,1.25);
+		
+		return vSample;
+	}
+	
+	float4	ph_hdrbloominit(in float2 vScreenPosition : TEXCOORD0) : COLOR0
+	{
+		float3 vSample = 0.0f;
+#ifdef _X360
+		[unroll]
+#endif
+		for(int iSample = 0; iSample < 4; iSample++)
+		#ifdef _X360
+			vSample += UnpackHDRSample( tex2D(s0, vScreenPosition+gSampleOffset[iSample]) );
+		#else
+			vSample += tex2D(s0, vScreenPosition+gSampleOffset[iSample]).rgb;
+		#endif
+				
+		vSample = vSample * 0.0125 * tex2D(s1,float2(0.5,0.5)).x - 1.0;
+		#ifdef _X360
+			vSample = max( 0.0f, vSample );
+		#endif
+		return float4(vSample,1.f);
+	}
+	
+#ifdef _X360
+	#define NUM_BLOOM_SAMPLE 15
+#else
+	#define NUM_BLOOM_SAMPLE 10
+#endif
+
+	float4	ph_hdrbloom(in float2 vScreenPosition : TEXCOORD0) : COLOR0
+	{
+		float3 vSample = 0.0f;
+#ifdef _X360
+		[unroll]
+#endif
+		for(int iSample = 0; iSample < NUM_BLOOM_SAMPLE; iSample++)
+			vSample += gSampleWeight[iSample].x*tex2D(s0,vScreenPosition+gSampleOffset[iSample].xy);
+		return float4(vSample,1.f);
+	}
+
+	// Shrinking routine
+	//-------------------------------------------------------
+	
+	float4	ph_shrink2x2bilinear(in float2 vScreenPosition : TEXCOORD0) : COLOR0
+	{
+		half3	vSample = 0.0f;
+#ifdef _X360
+		[unroll]
+#endif
+		for(int iSample = 0; iSample < 4; iSample++)
+			vSample += tex2D(s0,vScreenPosition+gSampleOffset[iSample]);
+		
+		return float4(vSample/4,1.f);
+	}
+
+	float4	ph_shrink4x4bilinear(in float2 vScreenPosition : TEXCOORD0) : COLOR0
+	{
+		float3	vSample = 0.0f;
+#ifdef _X360
+		[unroll]
+#endif
+		for(int iSample = 0; iSample < 16; iSample++)
+			vSample += tex2D(s0,vScreenPosition+gSampleOffset[iSample]);
+
+		return float4(vSample/16,1.f);
+	}
+	
+	float4	ph_shrink4x4aniso() : COLOR0
+	{
+		return float4(0,1,1,1);
+	}
+	
+	float4	ph_gaussianblur(in float2 vScreenPosition : TEXCOORD0) : COLOR0
+	{
+		float4 vSample = 0.0f;
+		
+#ifdef _X360
+		[unroll]
+#endif
+		for(int i=0;i<9;i++)
+			vSample += gSampleWeight[i].x * tex2D( s0, vScreenPosition.xy + gSampleOffset[i].xy );
+			
+		return vSample;
+	}
+
+	float4	ph_coneblur(in float2 vScreenPosition : TEXCOORD0) : COLOR0
+	{
+		float4 vSample = 0.0f;
+		
+#ifdef _X360
+		[unroll]
+#endif
+		for(int iSample=0; iSample<4; iSample++)
+			vSample += gSampleWeight[iSample].x * tex2D( s0, vScreenPosition.xy + gSampleOffset[iSample].xy );
+
+		return vSample;
+	}
+
+
+
+	//-------------------------------------------------------
+
+	// Vignetting : make brigthness decrease over screen borders
+	void vignette(inout float3 c, const float2 win_bias)
+	{
+		// convert window coord to [-1, 1] range
+		float2 wpos = 2*(win_bias - (float2)(0.5, 0.5)); 
+	
+		// calculate distance from origin
+		float r = length(wpos.xy);
+		r = 1.0 - smoothstep(0.8, 1.5, r);
+		c = c * r;
+	}

@@ -1,0 +1,59 @@
+	#include "hlsl_math.h"
+
+	float3 MapTankCoordinate(in const float3 Position, in const float3 TankPosition, in const float3 TankScale)
+	{
+		float3 p = Position - TankPosition / TankScale;
+		float3 sp = sign(p);
+		return (fmod(p + sp, C_TWO) - sp) * TankScale + TankPosition;
+	}
+
+	void vh_rain (const VS_3DIn i, out VS_3DOut o)
+	{
+		float4 RainColor = C_USER0;
+		float3 Speed = C_USER1.xyz + float3(i.color.z, C_NULL, i.color.w);
+		float TankScale = C_USER1.w;
+		float3 ParticleScale = C_USER2.xyz;
+		float ParticleAlphaBias = C_USER3.x;
+		float ParticleAlphaTreshold = C_USER3.y;
+
+		float3 adjustment = float3(C_NULL, C_NULL, TankScale);
+
+		float3x3 vm = (float3x3)VIEW_MATRIX;
+
+		float3 position = MapTankCoordinate(i.position.xyz + float3(C_NULL, Speed.y * C_DTIME, C_NULL), EYE_WORLD.xyz + mul(adjustment, vm).xyz, TankScale);
+
+		float2 xzDisplace = Speed.xz * i.color.y * C_TWO;
+		float4 opos = WorldToViewVertex(float4(position.x + xzDisplace.x, position.y + ParticleScale.y * (i.color.y * C_TWO - C_UNIT), position.z + xzDisplace.y, C_UNIT));
+
+		float depth = opos.z / TankScale;
+
+		//                                                          ajustement pour la taille des quads trop loin (on a pas d'AA)
+		opos.x += ParticleScale.x * (i.color.x * C_TWO - C_UNIT) * (C_UNIT + ParticleScale.z * depth);
+
+		RainColor.a = ParticleAlphaBias + ParticleAlphaTreshold * (C_UNIT - depth);
+
+		o.position		= ProjVertex(opos);
+		o.color			= RainColor;
+		o.diffuse		= i.diffuse;
+		o.fog.xyz		= FOG_COLOR;
+		o.fog.w			= FOG_ON*i.position.w;
+	}
+
+
+	void vh_splash (const VS_3DIn i, out VS_3DOut o)
+	{
+		float4 RainColor = C_USER0;
+		float3 Speed = C_USER1.xyz;
+		float TankScale = C_USER1.w;
+		float3 ParticleScale = C_USER2.xyz;
+
+		float3 position = i.position.xyz;
+		float4 opos = WorldToViewVertex(float4(position.x, position.y + ParticleScale.y * (i.color.y * C_TWO - C_UNIT), position.z, C_UNIT));
+		opos.x += ParticleScale.x * (i.color.x * C_TWO - C_UNIT);
+
+		o.position		= ProjVertex(opos);
+		o.color			= RainColor;
+		o.diffuse		= i.diffuse;
+		o.fog.xyz		= FOG_COLOR;
+		o.fog.w			= FOG_ON*i.position.w;
+	}

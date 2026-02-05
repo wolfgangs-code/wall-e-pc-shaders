@@ -1,0 +1,15 @@
+	#include "particle.h"
+	
+	float4 ph_decal (in VS_3DOut i) : COLOR0
+	{
+		float4	color;
+		color.rgb = i.color.rgb*tex2D(sDiffuse,i.diffuse).rgb*2;
+		color.a	  = i.color.a*tex2D(sDiffuse,i.diffuse).a;
+
+		#ifdef _X360
+			color.xyz = lerp(color.xyz,i.fog.xyz,i.fog.w);
+			color.xyz = PackHDRSample( color.xyz );
+		#endif
+		
+		return color;
+	}

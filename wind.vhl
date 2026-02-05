@@ -1,0 +1,65 @@
+	#include "hlsl_math.h"
+
+	float3 MapTankCoordinate(in const float3 Position, in const float3 TankPosition, in const float3 TankScale)
+	{
+		float3 p = Position - TankPosition / TankScale;
+		float3 sp = sign(p);
+		return (fmod(p + sp, C_TWO) - sp) * TankScale + TankPosition;
+	}
+
+	void vh_wind (const VS_3DIn i, out VS_3DOut o)
+	{
+		float4 SnowColor = C_USER0;
+		float3 Speed = C_USER1.xyz;
+		float TankScale = C_USER1.w;
+		float ParticleScale = C_USER2.x;
+		float WaveAmplitude = C_USER2.y;
+		float WaveFrequency = C_USER2.z;
+		
+		float3 FloorPosition = C_USER3.xyz;
+		float3 FrontFloorPosition = C_USER4.xyz;
+
+		float3 adjustment = float3(C_NULL, C_NULL, TankScale);
+
+		float3x3 vm = (float3x3)VIEW_MATRIX;
+
+		float3 currentPosition = i.position.xyz + Speed * C_DTIME;
+		float3 tankPosition = EYE_WORLD.xyz + mul(adjustment, vm).xyz;
+		float3 position = MapTankCoordinate(currentPosition, tankPosition, TankScale);
+
+		//
+		//               DELICIOUS CAKE
+		//         ___----x
+		//     x---
+		//  YOU
+		//
+		// lerp height
+		//
+
+//		float interp = fmod(currentPosition.x + sign(currentPosition.x), C_TWO) - sign(currentPosition.x);
+
+		float3 vecToFront = (FrontFloorPosition - FloorPosition) / TankScale;
+		float mydot = dot(vecToFront, (position - FloorPosition) / TankScale);
+		mydot = min(mydot, 1.0f);
+		mydot = max(mydot, 0.0f);
+
+		position.y = lerp(FloorPosition.y, FrontFloorPosition.y, mydot) + 0.5f;
+
+		float angle = WaveFrequency * C_DTIME + i.color.a;
+		float _sin, _cos;
+		sincos(angle, _sin, _cos);
+		position.x += WaveAmplitude * (_cos + _sin);
+		position.y += WaveAmplitude * (_cos - _sin);
+		position.z += WaveAmplitude * (_cos + _sin);
+
+		float4 opos = ViewVertex(float4(position, 1));
+
+		opos += ParticleScale * float4(i.diffuse.xy * C_TWO - C_UNIT, C_NULL, C_NULL);
+
+		o.position		= ProjVertex(opos);
+		o.color			= SnowColor;
+		o.diffuse		= i.diffuse;
+		o.fog.xyz		= FOG_COLOR;
+		o.fog.w			= FOG_ON*i.position.w;
+	}
+

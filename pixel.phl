@@ -1,0 +1,246 @@
+	#include "hlsl_math.h"
+	#include "hlsl_shadow.h"
+	
+#define COEF_NMR	2
+
+	static	float3	gBumpAxe1=float3(0.816/COEF_NMR,0,0.577/COEF_NMR);
+	static	float3	gBumpAxe2=float3(-0.408/COEF_NMR,0.707/COEF_NMR,0.577/COEF_NMR);
+	static	float3	gBumpAxe3=float3(-0.408/COEF_NMR,-0.707/COEF_NMR,0.577/COEF_NMR);
+
+	//	(lightdot*LightDiffuse+LightAmbient*Occlusion)*MaterialDiffuse+MaterialEmissive
+	void	Lighting(const PS_Input i,inout float4 oDiffuse,const float lightdot)
+	{
+	#ifndef	bNoDLight
+		float3	La=gDLight.Ambient.xyz;
+	#ifdef	bOcclusion
+		La*=tex2D(sOcclusion,i.TexCoord.diffuse.xy);
+	#endif
+		#ifdef	bRadiosity
+			if(!gDLight.Dir.w)		//Diffuse On Off Directionnal Light
+			{
+				oDiffuse.xyz*=saturate( (gMaterial.Emissive.xyz+gMaterial.Diffuse.xyz) );
+			}
+			else
+		#endif
+			oDiffuse.xyz*=saturate( (gMaterial.Emissive.xyz+gMaterial.Diffuse.xyz*La) +  lightdot*gMaterial.Diffuse.xyz*gDLight.Color.xyz );
+	#endif
+	}
+		
+#ifdef	bOmni
+	float3 ph_omni(		in const half3 vPos,
+						in const half4 omnitcproj,
+						in const float3 ref,in const float4 tSpecular,
+						in const float3 tDiffuse,in const float3 tNormal,
+						in const PixelOmni Omni,
+						in sampler2D sProjMap)
+	{
+		float3	omnipos=Omni.Pos-vPos;
+		float	d=dot(omnipos,omnipos);
+		
+		//Range Attenuation (Dist^2)
+		float	r=saturate(1-((d-Omni.Value.x)*Omni.Value.y));
+
+		//Cut Off Attenuation
+		float3	v=omnipos*rsqrt(d);
+		float	c=saturate(1-(dot(Omni.Dir.xyz,v)*Omni.Value.z+Omni.Value.w));
+
+		//Normal Attenuation
+		float	n=saturate(dot(v,tNormal));
+		
+		//Color
+		float3	color=r*n*c*Omni.Color;
+		float3	o;
+		if(Omni.Pos.w)
+			o=color*tDiffuse.xyz*tex2Dproj(sProjMap,omnitcproj);
+		else
+			o=float3(0.f,0.f,0.f);
+
+		#ifdef bSpecular
+		if(Omni.Dir.w)	//Specular On Off Spot/Omni Light
+		{
+			float	s = pow(saturate(dot(ref,v)),gMaterial.Specular.w*tSpecular.w);
+			o += s*color*gMaterial.Specular*tSpecular;
+		}
+		#endif
+		return	o;
+	}
+ #endif
+ 
+ 	float4 ph_base (const PS_Input i) : COLOR
+	{
+		float4	oDiffuse;
+		float4	tDiffuse=tex2D(sDiffuse,i.TexCoord.diffuse.xy);
+				tDiffuse.xyz*=2;
+		oDiffuse.w=tDiffuse.w*gMaterial.Emissive.w;
+	#ifdef	bNoDiffuse
+		oDiffuse.xyz=0;
+	#else
+		oDiffuse.xyz=tDiffuse.xyz;
+	#endif
+		
+	#ifdef	bNormal												//Normal Map ?	
+		float3x3 mTexSpace;
+		mTexSpace[0]=float3(i.TexSpace.axe0.xyz);
+		mTexSpace[1]=float3(i.TexSpace.axe1.xyz);
+		mTexSpace[2]=float3(i.TexSpace.axe2.xyz);
+		float3	tOrgNormal = (2 * tex2D( sNormal, i.TexCoord.diffuse.xy) - 1);
+		float3	tNormal=mul(tOrgNormal ,mTexSpace);
+		float3	vPos=float3(i.TexSpace.axe0.w,					//Vertex Position
+							i.TexSpace.axe1.w,
+							i.TexSpace.axe2.w);
+	#else
+		#ifdef	bNormalLocal
+		float3	tNormal = (2 * tex2D( sNormalLocal, i.TexCoord.diffuse.xy) - 1);
+		#else
+		float3	tNormal = i.TexSpace.normal;					// Vertex normal
+		#endif
+		float3	vPos=i.TexSpace.pos;							// Vertex Position
+	#endif
+		tNormal=normalize(tNormal);
+
+ 		float3	tLight = gDLight.Dir.xyz;
+  		float	cd=saturate(dot( tNormal, tLight ));
+  
+  		
+ 	#ifdef	bShadowMap
+		#ifdef	bShadowMapNoise
+		
+			float2 noiseUV = ComputeShadowNoiseUV( i.shadowNoiseUv );
+			
+ 			cd*=PixelShadowNoise(i.shadowtcproj,noiseUV);
+		#else
+ 			cd*=PixelShadow9(i.shadowtcproj);
+		#endif
+	#endif
+	
+#ifdef bRadiosity
+		float2	cRad=i.TexCoord.diffuse.zw;
+		float4	tRad=tex2D(sRadiosityMap,cRad);
+
+	#if	defined(bRadiosityNormal) && defined(bNormal)
+		float3	tLightColor1=tex2D(sRadiosityMap,float2(cRad.x+0.5,cRad.y));
+		float3	tLightColor2=tex2D(sRadiosityMap,float2(cRad.x,cRad.y+0.5));
+		float3	tLightColor3=tex2D(sRadiosityMap,float2(cRad.x+0.5,cRad.y+0.5));
+
+		float3	tLightColor=saturate(dot(tOrgNormal ,gBumpAxe1))*tLightColor1;
+		tLightColor+=saturate(dot(tOrgNormal ,gBumpAxe2))*tLightColor2;
+		tLightColor+=saturate(dot(tOrgNormal ,gBumpAxe3))*tLightColor3;
+		
+		float coef=0.5*(tRad.w+1);
+		float3	colort=lerp(tLightColor,tRad.xyz,1-coef );
+		oDiffuse.xyz*=colort;
+
+	#else
+		oDiffuse.xyz*=tRad.xyz;
+	#endif
+#endif
+
+	Lighting(i,oDiffuse,cd);
+
+	#ifdef	bGouraud
+	oDiffuse*=i.color;
+	#endif
+
+	#ifdef	bSpecular
+		float3	eye = normalize(i.eyevec);
+		float4	tSpecular = tex2D(sSpecular,i.TexCoord.diffuse);
+		float3	ref = dot(tNormal,eye)*tNormal*2-eye;
+		#ifdef bRadiosity
+		if(gDLight.Ambient.w)				//Specular On Off Directionnal Light
+		#endif
+		{
+			float	s = saturate(dot(ref,tLight));
+			s = pow(s,gMaterial.Specular.w*tSpecular.w);
+			#ifdef	bRadiosity
+			oDiffuse.xyz += s*gMaterial.Specular*gDLight.Color*tSpecular*tRad.w;		//Rad blend DLight Specular
+			#else
+			oDiffuse.xyz += s*gMaterial.Specular*gDLight.Color*tSpecular;
+			#endif
+		}
+	#else
+		float4	tSpecular=float4(0,0,0,0);
+		float3	ref=float3(0,0,0);
+	#endif
+	
+	#ifdef	bOmni
+		oDiffuse.xyz+=ph_omni(vPos,i.omnitcproj,ref,tSpecular,tDiffuse,tNormal,gOmni0,sProjSpotMap0);
+	#endif
+
+
+
+	#ifdef	bEnvmap
+		#ifdef	bEnvmapScreen
+			float2	cEnvmap=(i.envmap.xy / i.envmap.z)*float2(0.5f,-0.5f) + 0.5f;
+		#else
+			float2	cEnvmap=i.envmap.xy;
+		#endif
+		float4	tEnvmap=tex2D(sEnvmap,cEnvmap)*gMaterial.Emissive.w*gMaterialParams.y;
+		#ifdef	bEnvmapAlpha
+		tEnvmap.xyz*=oDiffuse.w;
+		#endif
+		#ifdef	bSpecular
+		oDiffuse.xyz+=tEnvmap.xyz*tSpecular.xyz;
+		#else
+		oDiffuse.xyz+=tEnvmap.xyz;
+		#endif
+	#endif
+
+
+	#ifndef	bNoFog
+		oDiffuse.xyz=lerp(oDiffuse.xyz,i.fog.xyz,i.fog.w);
+	#endif
+
+	#ifdef	bBlendScreen
+		float2	screenuv;
+		screenuv.xy = (i.projpos.xy / i.projpos.w)*float2(0.5f,-0.5f) + 0.5f;
+		oDiffuse.xyz*=tex2D(sBlendScreenMap,screenuv);
+	#endif
+		return	oDiffuse;
+	}
+
+
+	float4 ph_base_omni (const PS_Input_Omni i) : COLOR
+	{
+		float4	tDiffuse=tex2D(sDiffuse,i.TexCoord.diffuse);
+		tDiffuse.xyz*=2;
+		float4	oDiffuse;
+		oDiffuse.w = tDiffuse.w*gMaterial.Emissive.w;
+	#ifdef	bNormal												//Normal Map Tangent ?	
+		float3x3 mTexSpace;
+		mTexSpace[0]=float3(i.TexSpace.axe0.xyz);
+		mTexSpace[1]=float3(i.TexSpace.axe1.xyz);
+		mTexSpace[2]=float3(i.TexSpace.axe2.xyz);
+		float3	tNormal = (2 * tex2D( sNormal, i.TexCoord.diffuse.xy) - 1);
+		tNormal=mul(tNormal,mTexSpace);
+		float3	vPos=float3(i.TexSpace.axe0.w,					//Vertex Position
+							i.TexSpace.axe1.w,
+							i.TexSpace.axe2.w);
+	#else
+		#ifdef	bNormalLocal									//Normal Map Local ?	
+		float3	tNormal = (2 * tex2D( sNormalLocal, i.TexCoord.diffuse.xy) - 1);
+		#else
+		float3	tNormal = i.TexSpace.normal;					// Vertex normal
+		#endif
+		float3	vPos=i.TexSpace.pos;							// Vertex Position
+	#endif
+		tNormal=normalize(tNormal);
+
+	#ifdef	bSpecular
+		float3	eye = normalize(i.eyevec);
+		float4	tSpecular = tex2D(sSpecular,i.TexCoord.diffuse);
+		float3	ref = dot(tNormal,eye)*tNormal*2-eye;
+	#else
+		float4	tSpecular=float4(0,0,0,0);
+		float3	ref=float3(0,0,0);
+	#endif
+
+		#ifdef	bOmni12
+		oDiffuse.xyz=ph_omni(vPos,i.omni0tcproj,ref,tSpecular,tDiffuse,tNormal,gOmni1,sProjSpotMap1);
+		oDiffuse.xyz+=ph_omni(vPos,i.omni1tcproj,ref,tSpecular,tDiffuse,tNormal,gOmni2,sProjSpotMap2);
+		#endif
+		#ifdef	bOmni34
+		oDiffuse.xyz=ph_omni(vPos,i.omni0tcproj,ref,tSpecular,tDiffuse,tNormal,gOmni3,sProjSpotMap3);
+		oDiffuse.xyz+=ph_omni(vPos,i.omni1tcproj,ref,tSpecular,tDiffuse,tNormal,gOmni4,sProjSpotMap4);
+		#endif
+		return	oDiffuse;
+	}

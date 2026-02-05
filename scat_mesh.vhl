@@ -1,0 +1,150 @@
+	#include "scat_mesh.h"
+    
+	/*---------------------------------------------------------------------------------------------------------------------------------
+	//			Shader de base pour tout Mesh
+	----------------------------------------------------------------------------------------------------------------------------------*/
+	void vh_base(const VS_Input i,inout VS_ScatOutput o)
+	{
+		float4		wPos;
+		o.position	=WorldAndProjectVertex(i.position,wPos);
+
+	#ifdef	bShadowMap
+		o.shadowtcproj=ProjShadow(wPos);
+		#ifdef bShadowMapNoise
+			o.shadowNoiseUv = o.position;
+		#endif
+	#endif
+	
+	#ifdef	bOmni
+		o.omni.xyz=mul(wPos,GetMatrix(C_OMNI_0_WORLDTOLOCAL)).xyz*C_HALF+C_HALF;
+	#else
+		o.omni.xyz=C_NULL;
+	#endif
+		o.eyevec.xyz	=(EYE_LOCAL-i.position);
+
+		//Tangent Space
+		float3	normal=i.normal*C_TWO-C_UNIT;
+		float3x3 mLight	= LightMat(i.tangent,normal);
+		OutTexSpace(o.TexSpace,mLight,i.position,normal);
+		
+		// Il faut normalizer car il peut y avoir des scale dans la matrice du mesh
+		float3	worlddlight=WorldRotate(DLIGHT_DIR);
+		worlddlight=normalize(worlddlight);
+		scatteringbase(wPos,C_UNIT,worlddlight,o.extinction.xyz,o.inscatter.xyz);
+		o.extinction.xyz*=GOURAUD_DFLT;
+
+		//Texture Coord
+		SetDiffuseUV(o,MaterialMat(i.uv));
+		
+		SetBroken(o,C_NULL);
+		SetDirtiness(o,C_NULL);	
+	}       
+
+    //Morphing, n'est pas fait si on suppose que la voiture doit etre en FL_MTL_CODE_CAR0
+	void vh_mbase(const VS_Input i,in const float3 morph_d0 : POSITION2,inout VS_ScatOutput o)
+	{
+		vh_base(i,o);
+	}
+
+	/*---------------------------------------------------------------------------------------------------------------------------------
+	//			Shader avec le FL_MTL_CODE_CAR0 FL_MTL_CODE_CAR1 FL_MTL_CODE_CAR2
+	----------------------------------------------------------------------------------------------------------------------------------*/
+
+	//ATTENTION : Position passé en parametre, le morphing voir plus bas
+	
+	void vh_main_car(const VS_Input i,inout VS_ScatOutput o,in const float4 position)
+	{
+		float4		wPos;
+		o.position	=WorldAndProjectVertex(position,wPos);
+
+	#ifdef	bShadowMap
+		o.shadowtcproj=ProjShadow(wPos);
+		#ifdef bShadowMapNoise
+			o.shadowNoiseUv = o.position;
+		#endif
+	#endif
+		
+
+	#ifdef	bOmni
+		o.omni.xyz=mul(wPos,GetMatrix(C_OMNI_0_WORLDTOLOCAL)).xyz*C_HALF+C_HALF;
+	#else
+		o.omni.xyz=C_NULL;
+	#endif
+		
+		o.eyevec.xyz	=(EYE_LOCAL-position);
+
+		//Tangent Space
+		float3	normal=i.normal*C_TWO-C_UNIT;
+		float3x3 mLight	= LightMat(i.tangent,normal);
+		OutTexSpace(o.TexSpace,mLight,position,normal);
+		
+		// Il faut normalizer car il peut y avoir des scale dans la matrice du mesh
+		float3	worlddlight=WorldRotate(DLIGHT_DIR);
+		worlddlight=normalize(worlddlight);
+		scatteringbase(wPos,C_UNIT,worlddlight,o.extinction.xyz,o.inscatter.xyz);
+
+		//Texture Coord
+		SetDiffuseUV(o,MaterialMat(i.uv));
+		
+		SetBroken(o,C_NULL);
+		SetDirtiness(o,C_NULL);	
+	#ifdef	bDirt
+		//Temporary (dirtiness)
+		SetDirtiness(o,C_USER0.x);
+//		SetDirtiness(o,sin( C_DTIME * 0.08f ) * 0.5f + 0.5f);
+	#endif
+	}
+
+	//Morphing + FL_MTL_CODE_CAR0 	
+	void vh_mcar(const VS_Input i,in const float3 morph_d0 : POSITION2,inout VS_ScatOutput o)
+	{
+		float	pixelmorph;
+		float4	newposition=TargetMorph(i.position,morph_d0,pixelmorph);
+		
+		vh_main_car(i,o,newposition);
+		
+		SetBroken(o,pixelmorph);
+	}
+	//FL_MTL_CODE_CAR0
+	void vh_car(const VS_Input i,inout VS_ScatOutput o)
+	{
+		vh_main_car(i,o,i.position);
+	}
+	   
+	// + face de rotshape		 
+	void vh_rbase(const VS_Input i,inout VS_ScatOutput o)
+	{
+		float4		wPos=WorldVertex(i.position);
+		float3		AxeX=float3(c[C_WORLD_CONTEXT].x,c[C_WORLD_CONTEXT+1].x,c[C_WORLD_CONTEXT+2].x);
+		float		Scale=sqrt(dot(AxeX,AxeX));
+		float3		lPos=(CAM_WSIDE*i.luv.x*Scale+CAM_WUP*i.luv.y*Scale);
+		wPos.xyz+=lPos;
+		o.position	= WorldToProjVertex(wPos);
+	#ifdef	bShadowMap
+		o.shadowtcproj=ProjShadow(wPos);
+	#endif
+	
+		o.omni		=C_NULL;
+		o.eyevec	=(EYE_LOCAL-i.position);
+	
+		//Tangent Space
+		float3	normal=i.normal*C_TWO-C_UNIT;
+		float3x3 mLight	= LightMat(i.tangent,normal);
+		OutTexSpace(o.TexSpace,mLight,i.position,normal);
+		 	    
+		float3	worlddlight=WorldRotate(DLIGHT_DIR);
+		scatteringbase(wPos,C_UNIT,worlddlight,o.extinction.xyz,o.inscatter.xyz);
+		
+		//Texture Coord
+		SetDiffuseUV(o,MaterialMat(i.uv));
+
+		SetBroken(o,C_NULL);
+		SetDirtiness(o,C_NULL);	
+	}
+	
+	// + face de rotshape + MATERIAL_CODE_NORMAL_ALPHA0		 
+	void vh_rbase_alpha0(const VS_Input i,inout VS_ScatOutput o)
+	{
+		vh_rbase(i,o);
+	}	   
+	            

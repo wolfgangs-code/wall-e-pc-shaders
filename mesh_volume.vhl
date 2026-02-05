@@ -1,0 +1,32 @@
+	#include "hlsl_math.h"
+ 
+	struct VS_Input_Volume {
+		float4	position	: POSITION;
+		float3	normal		: NORMAL;
+	};
+		
+	VS_Output_Volume	vh_volume(const VS_Input_Volume i)
+	{
+		VS_Output_Volume o;
+		
+		// Compute extrusion direction
+		float3	dirlight = C_VOLEXT_LIGHTPOS;
+		float3	omnilight = C_VOLEXT_LIGHTPOS-i.position;
+		float3	extrudeDir = normalize( dirlight*C_VOLEXT.y + omnilight*C_VOLEXT.z );
+		float	dist = length(omnilight);
+		
+		// Determine if the vert needs to be extruded
+		float4	newPos = i.position;
+		float	facing = dot(extrudeDir, i.normal);
+		
+		// Extrude vertex = v_pos-extrudelen*extrudedir
+		if(facing<C_NULL)
+			newPos.xyz = newPos-extrudeDir*(C_VOLEXT.x-dist);
+		
+		// Project vertex
+		o.position = ProjectVertex(newPos);
+				
+		// Light color (for debug)
+		o.color = C_VOLEXT_LIGHTCOL; 
+		return o;
+	}

@@ -1,0 +1,59 @@
+	#include "skin.h"
+	#include "scat_skin.h"
+	
+	void vh_blend1(const VS_Input_1Blend i, inout VS_ScatOutput o)
+	{
+		VS_Output_Blended	b;
+		Blend1(i,i.position,b);
+
+		float4	wPos;
+		o.position	= WorldAndProjectVertex(b.position,wPos);
+	#ifdef	bShadowMap
+		wPos.w=C_UNIT;
+		o.shadowtcproj=ProjShadow(wPos);
+		#ifdef bShadowMapNoise
+			o.shadowNoiseUv = o.position;
+		#endif
+	#endif
+	
+		//Binormal * sign
+		float3		vBinormal = cross(b.normal,b.tangent)*b.handedness;
+		//Tangent Space
+		float3x3	mLight = LightMat(b.tangent,vBinormal,b.normal);
+		OutTexSpace(o.TexSpace,mLight,b.position,b.normal);
+
+		o.eyevec.xyz	=(EYE_LOCAL.xyz-b.position.xyz);
+		     
+		float3	worlddlight=WorldRotate(DLIGHT_DIR);
+		scatteringbase(wPos,C_UNIT,worlddlight,o.extinction.xyz,o.inscatter.xyz);
+		//Texture Coord
+		SetDiffuseUV(o,MaterialMat(i.uv));
+	} 
+	     
+	void vh_blend4(const VS_Input_4Blend i,inout VS_ScatOutput o)
+	{
+		VS_Output_Blended	b;
+		Blend4(i,i.position,b);
+
+		float4	wPos;
+		o.position	= WorldAndProjectVertex(b.position,wPos);
+
+	#ifdef	bShadowMap
+		wPos.w=C_UNIT;
+		o.shadowtcproj=ProjShadow(wPos);
+	#endif
+ 
+		//Binormal * sign
+		float3		vBinormal = cross(b.normal,b.tangent)*b.handedness;
+		//Tangent Space
+		float3x3	mLight = LightMat(b.tangent,vBinormal,b.normal);
+		OutTexSpace(o.TexSpace,mLight,b.position,b.normal);
+		
+		o.eyevec.xyz	=(EYE_LOCAL.xyz-b.position.xyz);
+ 
+		float3	worlddlight=WorldRotate(DLIGHT_DIR);
+		scatteringbase(wPos,C_UNIT,worlddlight,o.extinction.xyz,o.inscatter.xyz);
+		//Texture Coord
+		SetDiffuseUV(o,MaterialMat(i.uv));
+	}
+	

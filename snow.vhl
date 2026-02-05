@@ -1,0 +1,54 @@
+	#include "hlsl_math.h"
+
+	float3 MapTankCoordinate(in const float3 Position, in const float3 TankPosition, in const float3 TankScale)
+	{
+		float3 p = Position - TankPosition / TankScale;
+		float3 sp = sign(p);
+		return (fmod(p + sp, C_TWO) - sp) * TankScale + TankPosition;
+	}
+
+	void vh_snow (const VS_3DIn i, out VS_3DOut o)
+	{
+		float4 SnowColor = C_USER0;
+		float3 Speed = C_USER1.xyz;
+		float TankScale = C_USER1.w;
+		float ParticleScale = C_USER2.x;
+		float WaveAmplitude = C_USER2.y;
+		float WaveFrequency = C_USER2.z;
+
+		float ParticleAlphaBias = C_USER3.x;
+		float ParticleAlphaTreshold = C_USER3.y;
+
+
+		float3 adjustment = float3(C_NULL, C_NULL, TankScale);
+
+		/*float3x3 vm = float3x3(
+			c[C_VIEW_CONTEXT].x, c[C_VIEW_CONTEXT].y,c[C_VIEW_CONTEXT].z,
+			c[C_VIEW_CONTEXT+1].x,c[C_VIEW_CONTEXT+1].y,c[C_VIEW_CONTEXT+1].z,
+			c[C_VIEW_CONTEXT+2].x,c[C_VIEW_CONTEXT+2].y,c[C_VIEW_CONTEXT+2].z);*/
+		float3x3 vm = (float3x3)VIEW_MATRIX;
+
+		float3 currentPosition = i.position.xyz + Speed * C_DTIME;
+		float3 position = MapTankCoordinate(currentPosition, EYE_WORLD.xyz + mul(adjustment, vm).xyz, TankScale);
+
+		float angle = WaveFrequency * currentPosition.y + i.color.a;
+		float _sin, _cos;
+		sincos(angle, _sin, _cos);
+		position.x += WaveAmplitude * (_cos - _sin);
+		position.z += WaveAmplitude * (_cos + _sin);
+
+		float4 opos = WorldToViewVertex( float4(position.xyz,1) );
+
+		opos += ParticleScale * float4(i.diffuse.xy * C_TWO - C_UNIT, C_NULL, C_NULL);
+		float depth = opos.z / TankScale;
+		SnowColor.a = ParticleAlphaBias + ParticleAlphaTreshold * (C_UNIT - depth);
+
+		o.position		= ProjVertex(opos);
+		o.color			= SnowColor;//float4(SnowColor.rgb, alpha);
+		o.diffuse		= i.diffuse;
+		o.fog.xyz		= FOG_COLOR;
+		o.fog.w			= FOG_ON*i.position.w;
+	}
+
+
+	

@@ -1,0 +1,51 @@
+#include "sfx.h"
+
+float4 tornado_deform(in const float4 p)
+{
+	float4 pos = p;
+	float phase = p.x + p.z;
+	float freq = C_UNIT - C_QUARTER;
+	float amp = C_UNIT + C_UNIT;
+	
+	pos.x += sin(phase * freq) * amp;
+	pos.z += cos(phase * freq) * amp;
+	
+	return pos;
+}
+
+void vh_tornado(const VS_Tornado_Input i, inout VS_Tornado_Output o)
+{
+	float4 worldPos;
+	o.position = WorldAndProjectVertex(i.position, worldPos);
+	o.normal = i.normal;
+	o.uv = i.UVAlphaAdd.xy + float2(-C_DTIME * C_QUARTER, C_DTIME * C_INV16);
+	o.eyevec = EYE_LOCAL.xyz - i.position.xyz;
+	o.lightdir = DSKY_DIR;
+	o.params = float3(i.UVAlphaAdd.z, i.UVAlphaAdd.w, C_NULL);
+
+	float3	worlddlight=WorldRotate(DLIGHT_DIR.xyz);
+	worlddlight=normalize(worlddlight);
+	scatteringbase(worldPos, C_UNIT, worlddlight, o.extinction.xyz, o.inscatter.xyz);
+	o.extinction.w=C_NULL;
+	o.inscatter.w=C_NULL;
+
+}
+
+void vh_tornadoclouds(const VS_Tornado_Input i, inout VS_Tornado_Output o)
+{
+	float4 worldPos;
+	o.position = WorldAndProjectVertex(i.position, worldPos);
+	o.normal = i.normal;
+	o.uv = i.UVAlphaAdd.xy;
+	o.eyevec = EYE_LOCAL.xyz - i.position.xyz;
+	o.lightdir = DSKY_DIR;
+	o.params = float3(i.UVAlphaAdd.z, i.UVAlphaAdd.w, C_NULL);
+
+	float3	worlddlight=WorldRotate(DLIGHT_DIR.xyz);
+	worlddlight=normalize(worlddlight);
+	scatteringbase(worldPos, C_UNIT, worlddlight, o.extinction.xyz, o.inscatter.xyz);
+	o.extinction.w=C_NULL;
+	o.inscatter.w=C_NULL;
+
+}
+

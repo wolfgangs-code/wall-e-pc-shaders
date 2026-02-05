@@ -1,0 +1,61 @@
+#define	bVLight
+	#include "warp.h"
+#undef bVLight
+
+	struct VS_Input {
+		float4	position	: POSITION;
+		float3	normal		: NORMAL;
+		float2	uv			: TEXCOORD0;
+		float4	diffuse		: COLOR0;
+	};
+
+
+	// Vertex Shader Warp
+	void vh_warp(const VS_Input i, out VS_Output o)
+	{
+		o.TexCoord.diffuse.xy= MaterialMat(float2(i.uv.x,i.uv.y));
+		o.position	= ProjectVertex(i.position);
+		o.light		= MTL_EMISSIVE+MTL_DIFFUSE;
+		o.fog		= C_NULL;
+	}
+
+
+	struct VS_SkyInput {
+		float4	position	: POSITION;
+		half2	texcoord	: TEXCOORD0;
+		half2	texcoord2	: TEXCOORD1;
+		half2	texcoord3	: TEXCOORD2;
+	};
+
+
+	// Vertex Shader Sky
+	void vh_sky(const VS_SkyInput i,out VS_SkyOutput o)
+	{
+		float4		wPos;
+		o.position	= WorldAndProjectVertex(i.position,wPos); 
+   
+		scatteringbase(wPos,C_UNIT,DLIGHT_DIR,o.extinction.xyz,o.inscatter.xyz);
+
+
+		float scale = length(c[C_WORLD_CONTEXT].xyz);
+
+		o.params.x = scale;
+		o.params.y = C_NULL;
+
+		o.extinction.w = i.texcoord.x;
+		o.inscatter.w = i.texcoord.y;
+		o.texcoord12.xy = i.texcoord2.xy;
+		o.texcoord12.zw = i.texcoord3.xy;
+	}
+
+	// Vertex Shader Sky        
+	void vh_skysun(const VS_SkyInput i,out VS_SkysunOutput o)   
+	{
+		float4		wPos;
+ 	 	o.position	= WorldAndProjectVertex(i.position,wPos); 
+	   	o.eye = EYE_WORLD.xyz-wPos.xyz;
+	   	o.texCoord = i.texcoord;
+                                                                 
+		scatteringbase(wPos,C_UNIT,DLIGHT_DIR,o.extinction,o.inscatter);
+	}
+

@@ -1,0 +1,62 @@
+	#include "particle.h"
+
+#ifdef	bVLight
+	
+	//particle, flare, rotshape
+	void vh_base(const VS_Input i,out VS_Output o)
+	{
+		o.TexCoord.diffuse.xy	= MaterialMat(i.uv);
+		o.fog.xyz	= FOG_COLOR;
+		o.fog.w		= i.f;
+		o.position	= ProjectVertex(i.position);
+		o.light.xyz	=i.color*MTL_DIFFUSE+MTL_EMISSIVE;
+		o.light.w	=i.color.w*MTL_EMISSIVE.w;
+
+#if	defined(bEnvmap) && defined(bEnvmapScreen)			//pour le Dash
+		o.envmap	= Envmap(i.position,o.position);
+#endif
+	}
+	
+	void vh_particle_omni(const VS_Input i,inout VS_Output o)
+	{
+		o.TexCoord.diffuse.xy	= MaterialMat(i.uv);
+		o.fog.xyz	= FOG_COLOR;
+		o.fog.w		= i.f;
+		o.position	= ProjectVertex(i.position);
+		VertexLighting(i.position,i.normal,o);
+		o.light.xyz	=o.light.xyz*MTL_DIFFUSE+MTL_EMISSIVE;
+		o.light.w	=i.color.w*MTL_EMISSIVE.w;
+	}
+
+
+	void vh_heat(const VS_Input_Heat i,out VS_Output o)
+	{
+		float4	p;
+			p.xyz=PARTICLE_POS;
+			p.w=C_UNIT;
+		float4	vp=ViewVertex(p);
+		p.xy=i.position.xy*PARTICLE_SCALE_XY;
+	
+		
+		//rotation
+		float2	pc=p.xy*PARTICLE_COS;
+		float2	ps=p.xy*PARTICLE_SIN;
+
+		//x=cosx+siny
+		p.x=pc.x+ps.y;
+		p.y=pc.y-ps.x;
+		
+		//Axe Camera + Pos
+		vp.xyz+=p.x*PARTICLE_CAM_X;
+		vp.xyz+=p.y*PARTICLE_CAM_Y;
+		
+		o.position=ProjVertex(vp);
+		
+		TextureScreen(o.position,o.TexCoord.diffuse,false);
+		
+		o.TexCoord.diffuse+=(i.position.zw*PARTICLE_COEFF)/vp.w;
+		o.light.xyz	=C_HALF;
+		o.light.w	=i.alpha;
+		o.fog		=C_NULL;
+	}
+#endif

@@ -1,0 +1,28 @@
+     	#include "ground_gmesh.h"
+	#include "hlsl_shadow.h"
+    
+	void vh_base(const VS_Input i,inout VS_GroundOutput o)
+	{
+		float4 iPos = WorldToViewVertex(i.position);
+		o.position = ProjVertex(iPos);
+	#ifdef	bShadowMap
+		o.shadowtcproj=ProjShadow(i.position);
+	#endif
+		// Gouraud
+		o.color = i.color;
+
+		o.sundir	=DLIGHT_DIR;
+		o.skydir	=DSKY_DIR;
+ 		o.normal	= i.normal;
+
+		scattering(i.position,C_UNIT,DLIGHT_DIR,o.extinction.xyz,o.inscatter.xyz,o.sunlight,o.skylight);
+
+		//Texture Coord
+		SetDiffuseUV(o,i.uv.x,i.uv.y);
+	}
+                
+	void vh_shadow(const VS_Input_Shadow i,inout VS_Output_ShadowMap o)
+	{
+		o.position=WorldToProjVertex(ReAddShadowBias(i.position0));
+		o.uvzw.xyzw=o.position.zzzw;
+	}

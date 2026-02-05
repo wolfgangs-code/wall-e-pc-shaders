@@ -1,0 +1,269 @@
+	#include "scat_mesh.h"
+	#include "hlsl_shadow.h"
+	
+  	float4 ph_base (const VS_ScatOutput i) : COLOR
+	{
+		float2	uv=GetDiffuseUV(i);
+		float4	tDiffuse = tex2D(sDiffuse,uv.xy);
+
+	#ifdef	bSpecular
+		float4	specularcolor=tex2D(sSpecular,uv.xy);
+	#else
+		float4	specularcolor=float4(0,0,0,0);
+	#endif
+	   
+	#ifdef	bNormal												//Normal Map ?	
+		float3x3 mTexSpace;
+		mTexSpace[0]=float3(i.TexSpace.axe0.xyz);
+		mTexSpace[1]=float3(i.TexSpace.axe1.xyz);
+		mTexSpace[2]=float3(i.TexSpace.axe2.xyz);
+		float3	tOrgNormal = 2 * tex2D( sNormal, uv.xy).xyz - 1;
+		float3	normal=mul(tOrgNormal ,mTexSpace);
+		normal=normalize(normal);
+	#else
+		#ifdef	bNormalLocal
+		float3	normal = 2 * tex2D( sNormalLocal, uv.xy).xyz - 1;
+		normal=normalize(normal);
+		#else
+		float3	normal = i.TexSpace.normal;						// Vertex normal
+		#endif
+	#endif
+			
+	#ifdef	bShadowMap
+		#ifdef	bShadowMapNoise
+			float2 noiseUV = ComputeShadowNoiseUV( i.shadowNoiseUv );	
+			float shadow = PixelShadowNoise(i.shadowtcproj, noiseUV, i.shadowNoiseUv.z);
+		#else
+			float shadow = PixelShadow4(i.shadowtcproj);
+		#endif
+	#else
+		float shadow = 1;
+	#endif
+	
+	#ifdef	bOcclusion
+		float	occlusion=tex2D(sOcclusion,uv.xy).r;
+	#else
+		float	occlusion=1;
+	#endif
+	
+	#ifdef	bSpecular
+		float	specularity=specularcolor.r;
+	#else
+		float	specularity=0;
+	#endif
+	#ifdef	bOcclusion
+		specularity*=occlusion;
+	#endif
+	
+	#ifdef	bOmni
+		float	omniv=tex2D(sProjSpotMap0,float2(i.omni.x,0)).r;
+		omniv*=tex2D(sProjSpotMap0,float2(i.omni.y,0)).r;
+		omniv*=tex2D(sProjSpotMap0,float2(i.omni.z,0)).r;
+		occlusion*=(1-omniv);
+	#endif
+	
+		float3 eye = normalize(i.eyevec.xyz);
+	   	float3 lightv = lighting(	normal.xyz,
+									gDLight.Dir.xyz,gDSkyDir.xyz,
+									eye.xyz,
+									gDSunColor.rgb,lerp(gDSkyAmbient.rgb,gDSkyColor.rgb,occlusion),		
+									tDiffuse.rgb,		//color vertex	
+									specularity,	//ou est passé le specular color ??
+									shadow );
+		 
+		tDiffuse.xyz =lightv;
+		tDiffuse.xyz *= i.extinction.xyz;
+		tDiffuse.xyz += i.inscatter.xyz;
+		
+		#ifdef _X360
+			tDiffuse.xyz = PackHDRSample( tDiffuse.xyz );
+		#endif
+		
+		return	tDiffuse;
+	}
+
+	const float4x4 gLocalToWorldNormalMatrix;
+	
+  	float4 ph_car (const VS_ScatOutput i) : COLOR
+  	{
+		float2	uv=GetDiffuseUV(i);
+
+		//Morphing, resultat du morphing qui blend la diffuse et la normal map
+		float	breakAmount=GetBroken(i);
+
+	#ifdef	bBroken
+		//Blend Diffuse Cassé
+		float2 halfuv=float2(uv.x*0.5f,uv.y);		
+		float4	tDiffuse = lerp(tex2D(sDiffuse,halfuv),tex2D(sDiffuse,float2(halfuv.x+0.5f,halfuv.y)),breakAmount);
+	#else
+		float4	tDiffuse = tex2D(sDiffuse,uv);
+	#endif
+	
+	#ifdef	bColoured
+		//Car paint color
+		tDiffuse.rgb = lerp( gGouraudDefault.rgb, tDiffuse.rgb, tDiffuse.a );
+		tDiffuse.a = 1.0f;
+	#endif
+
+		float	dirtiness = GetDirtiness(i);
+					
+	#ifdef	bDirt
+		float4  tDirt = tex2D(sDirt,uv.xy);
+		const float dirtTransition = 0.15f;
+		dirtiness = 1.0f - dirtiness;
+		dirtiness = smoothstep(	dirtiness, dirtiness + dirtTransition, tDirt.a );
+				
+		tDiffuse.rgb = lerp( tDiffuse.rgb, tDirt.rgb, dirtiness );
+	#endif
+				
+	#ifdef	bOcclusion
+		float	occlusion=tex2D(sOcclusion,uv.xy).r;
+	#else
+		float	occlusion=1;
+	#endif
+  
+	   
+	#ifdef	bNormal												//Normal Map ?	
+		float3x3 mTexSpace;
+		mTexSpace[0]=float3(i.TexSpace.axe0.xyz);
+		mTexSpace[1]=float3(i.TexSpace.axe1.xyz);
+		mTexSpace[2]=float3(i.TexSpace.axe2.xyz);
+		float3	tOrgNormal = 2 * tex2D( sNormal, uv.xy).xyz - 1;
+		float3	normal=mul(tOrgNormal ,mTexSpace);
+		normal=normalize(normal);
+	#else
+		#ifdef	bNormalLocal
+			#ifdef	bBroken
+			float3 normal =2*lerp( tex2D(sNormalLocal, halfuv).xyz, tex2D( sNormalLocal, float2(halfuv.x+0.5f,halfuv.y)).xyz, breakAmount)-1;
+			#else
+			float3 normal = 2*tex2D(sNormalLocal, uv).xyz-1;
+			#endif
+		normal=normalize(normal);
+		#else
+		float3	normal = i.TexSpace.normal;						// Vertex normal
+		#endif
+	#endif
+	
+	#ifdef	bShadowMap
+		#ifdef	bShadowMapNoise
+			float2 noiseUV = ComputeShadowNoiseUV( i.shadowNoiseUv );	
+			float shadow = PixelShadowNoise(i.shadowtcproj, noiseUV, i.shadowNoiseUv.z);
+		#else
+			float shadow = PixelShadow4(i.shadowtcproj);
+		#endif
+	#else
+		float shadow = 1;
+	#endif
+	#ifdef	bSpecular
+		float	specularity=tex2D(sSpecular,uv.xy).r;
+	#else
+		float	specularity=0;
+	#endif
+	#ifdef	bOcclusion
+		specularity*=occlusion;
+	#endif
+		specularity=lerp(specularity,.02*occlusion,dirtiness);
+		float3 eye = normalize(i.eyevec.xyz);
+	   	float3 lightv = lighting(	normal.xyz,
+									gDLight.Dir.xyz,gDSkyDir.xyz,
+									eye.xyz,
+									gDSunColor.rgb,lerp(gDSkyAmbient.rgb,gDSkyColor.rgb,occlusion),		
+									tDiffuse.rgb,		//color vertex	
+									specularity*shadow,	//ou est passé le specular color ??
+									shadow );
+		 
+		tDiffuse.xyz =lightv;
+
+	//Cubemap reflexion
+		float3 vReflect = reflect( -eye, normal );
+		//vReflect.z = -vReflect.z; //TODO fix this hack
+		
+		vReflect = mul( float4(vReflect, 0), gLocalToWorldNormalMatrix ).xyz;
+	
+		#ifdef _X360
+			float3 reflection = UnpackHDRSample( texCUBE( sGlobalCube, vReflect ) );
+		#else
+			float3 reflection = texCUBE( sGlobalCube, vReflect ).rgb;
+		#endif
+		//return reflection.xyzz;
+		
+		float fNdotV = 1-saturate( dot( eye, normal )); // Fresnel term
+		float fFresnel = fNdotV;// * fNdotV;
+
+		fFresnel = sqrt(specularity)*(fFresnel*(1-specularity) + specularity);//0.3f;
+		fFresnel=clamp(fFresnel,0,1);
+		float cubemapInfluence = fFresnel * ( 1.0f - breakAmount * 0.5f );
+		tDiffuse.xyz = lerp( tDiffuse.xyz,reflection.xyz, cubemapInfluence );
+
+		tDiffuse.xyz *= i.extinction.xyz;
+		tDiffuse.xyz += i.inscatter.xyz;
+	
+		#ifdef _X360
+			tDiffuse.xyz = PackHDRSample( tDiffuse.xyz );
+		#endif
+	
+		return	tDiffuse;
+  	}
+  	
+  	float4 ph_alpha0 (const VS_ScatOutput i) : COLOR
+	{
+		float2	uv=GetDiffuseUV(i);
+		float4	tDiffuse = tex2D(sDiffuse,uv.xy);
+	#ifdef	bNormal												//Normal Map ?	
+		float3x3 mTexSpace;
+		mTexSpace[0]=float3(i.TexSpace.axe0.xyz);
+		mTexSpace[1]=float3(i.TexSpace.axe1.xyz);
+		mTexSpace[2]=float3(i.TexSpace.axe2.xyz);
+		float3	tOrgNormal = 2 * tex2D( sNormal, uv.xy).xyz - 1;
+		float3	normal=mul(tOrgNormal ,mTexSpace);
+		normal=normalize(normal);
+	#else
+		#ifdef	bNormalLocal
+		float3 normal =2*tex2D(sNormalLocal, uv).xyz-1;
+		normal=normalize(normal);
+		#else
+		float3	normal = i.TexSpace.normal;
+		#endif
+	#endif
+		float 	occlusion = 1;
+		float	shadow = 1;
+		float3	eye = normalize(i.eyevec.xyz);
+   	   	float3 lightv = lighting(	normal.xyz,
+									gDLight.Dir.xyz,gDSkyDir.xyz,
+									eye.xyz,
+									gDSunColor.rgb,lerp(gDSkyAmbient.rgb,gDSkyColor.rgb,occlusion),		
+									tDiffuse.rgb,		//color vertex	
+									0,	//ou est passé le specular color ??
+									shadow );
+		 
+		float Width = 0.25;
+		float Softness = 6.0;
+	
+		float3 lightDir = gDLight.Dir.xyz;
+		float diff = dot(lightDir, normal)*0.5+0.5;
+//		float3 diffuse = diff * float3(0.7f, 0.8f, 1.0f);
+	
+		// fake depth
+		float dotEyeNormal = dot(eye, normal);
+		float depth = Width * dotEyeNormal;
+		float transparency = 1-dotEyeNormal;
+		float	velourlight=pow(transparency, 1.5);
+		velourlight=diff+velourlight*3;
+		transparency=pow(transparency, 2);
+		transparency=clamp(((transparency-0.2)*1.4),0,1);
+		float	fadeout=sqrt(dot(i.eyevec,i.eyevec));
+		fadeout=clamp(fadeout,0,1);
+		tDiffuse.w*=fadeout*(1-transparency);
+
+
+		tDiffuse.xyz =lightv*velourlight;
+		tDiffuse.xyz *= i.extinction.xyz;
+		tDiffuse.xyz += i.inscatter.xyz;
+		
+		#ifdef _X360
+			tDiffuse.xyz = PackHDRSample( tDiffuse.xyz );
+		#endif
+		
+		return tDiffuse;
+	}
+ 	

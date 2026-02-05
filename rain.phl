@@ -1,0 +1,33 @@
+	#include "hlsl_math.h"
+
+	
+	float4 ph_rain (in VS_3DOut i) : COLOR0
+	{
+		float4	color;
+		color.rgb = i.color.rgb*tex2D(sDiffuse,i.diffuse.xy).rgb*2;
+		color.a	  = i.color.a*tex2D(sDiffuse,i.diffuse.xy).a;
+
+		color.xyz = lerp(color.xyz,i.fog.xyz,i.fog.w);
+		#ifdef _X360
+			color.xyz = PackHDRSample( color.xyz );
+		#endif
+		
+		return color;
+	}
+	
+	
+	float4 ph_splash (in VS_3DOut i) : COLOR0
+	{
+		float4	color;
+		color.rgb = i.color.rgb*tex2D(sDiffuse,i.diffuse.xy).rgb*2;
+		color.a	  = i.color.a*tex2D(sDiffuse,i.diffuse.xy).a;
+
+		color.xyz = lerp(color.xyz,i.fog.xyz,i.fog.w);
+		#ifdef _X360
+			color.xyz = PackHDRSample( color.xyz );
+		#endif
+		
+		return color;
+	}
+	
+	

@@ -1,0 +1,36 @@
+	#include "ground_element.h"
+	#include "hlsl_shadow.h"
+	
+	float4 ph_base(in const VS_GroundOutput i) : COLOR0
+	{
+		float2	uv=GetDiffuseUV(i);
+
+		float4	tDiffuse;
+			tDiffuse.w = 1;
+		
+		float4 tNormal = tex2D(sNormal,uv.xy);
+		tNormal.xyz = normalize( tNormal.xyz*2-1 );
+		
+		#ifdef	bShadowMap
+		float shadow = PixelShadow4( i.shadowtcproj );
+		#else
+		float shadow = 0;
+		#endif
+  
+		tDiffuse.xyz=lighting(tNormal.xyz,
+						i.sundir.xyz,i.skydir.xyz,
+						i.eyevec.xyz*2-1,
+						i.sunlight.rgb,lerp(gDSkyAmbient.rgb,i.skylight.rgb,i.color.w),
+						i.color.rgb*tNormal.w*2,
+						i.inscatter.x,
+						shadow );
+						
+		tDiffuse.xyz *= i.extinction.xyz;
+		tDiffuse.xyz += i.inscatter.xyz;
+		#ifdef _X360
+			tDiffuse.xyz = PackHDRSample( tDiffuse.xyz );
+		#endif
+		tDiffuse.w = i.color.w;
+		return	tDiffuse;
+	}
+	

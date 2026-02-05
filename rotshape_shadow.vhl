@@ -1,0 +1,63 @@
+	#include "rotshape.h"
+	#include "hlsl_shadow.h"
+	
+	void vh_front_shadow(in const VS_Vertex3D i,out VS_Output_ShadowMap o)
+	{
+		float3	X,Y,Z;
+
+		float4 pivot = ViewVertex(WorldVertex(RSHAPE_PIVOT));
+		float3 pos = (C_UNIT-i.position.xyz)*RSHAPE_DWRIGHT + i.position.xyz*RSHAPE_UPLEFT;
+		//		Z = Pivot;
+		//		Z.Normalize();
+		//		Z *= -Scale;
+		//		X = (Vec3f(CamInvMat.m[1][0],CamInvMat.m[1][1],CamInvMat.m[1][2])^Z).Normalize();
+		//		Y = Z^X;
+		//		X *= Scale;
+		float3 viewAxis = normalize( float3(c[C_VIEW_CONTEXT].y, c[C_VIEW_CONTEXT+1].y, c[C_VIEW_CONTEXT+2].y) );
+
+		Z = normalize(pivot.xyz).xyz;
+		X = cross(viewAxis,Z).xyz;
+		Y = cross(Z,X).xyz;
+		
+		
+		// Scale
+		X = X*RSHAPE_SCALE;
+		Y = Y*RSHAPE_SCALE;
+		Z = Z*(-RSHAPE_SCALE);
+		float4 vertex_position;
+		vertex_position.xyz = X*pos.x + Y*pos.y + Z*pos.z + pivot.xyz;
+		vertex_position.w = C_UNIT;
+
+		o.position = ProjVertex(vertex_position);
+		o.uvz.xy = i.uv;
+		o.uvz.z	=AddShadowBias(o.position.z,viewAxis);
+	}	
+	
+	void vh_normal_shadow(in const VS_Vertex3D i,out VS_Output_ShadowMap o)
+	{
+		float3	X,Y,Z;
+
+		float4 pivot = ViewVertex(WorldVertex(RSHAPE_PIVOT));
+		float3 pos = (C_UNIT-i.position.xyz)*RSHAPE_DWRIGHT + i.position.xyz*RSHAPE_UPLEFT;
+		//		Y = Vec3f(CamInvMat.m[1][0],CamInvMat.m[1][1],CamInvMat.m[1][2])*Scale;
+		//		X = (Pivot^Y).Normalize();
+		//		Z = X ^ Y;
+		//		X *= Scale;
+		//		Z.Normalize();
+		//		Z *= Scale;
+		Y = normalize( float3(c[C_VIEW_CONTEXT].y, c[C_VIEW_CONTEXT+1].y, c[C_VIEW_CONTEXT+2].y) );
+		X = normalize( cross(pivot.xyz,Y) );
+		Z = cross(X,Y);
+
+		// Scale
+		X = X*RSHAPE_SCALE;
+		Y = Y*RSHAPE_SCALE;
+		Z = Z*RSHAPE_SCALE;
+		float4 vertex_position;
+		vertex_position.xyz = X*pos.x + Y*pos.y + Z*pos.z + pivot.xyz;
+		vertex_position.w = C_UNIT;
+
+		o.position = ProjVertex(vertex_position);
+		o.uvz.xy = i.uv;
+		o.uvz.z	=AddShadowBias(o.position.z,Y);
+	}		

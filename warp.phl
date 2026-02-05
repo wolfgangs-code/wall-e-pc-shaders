@@ -1,0 +1,63 @@
+#define	bVLight
+	#include "warp.h"
+#undef bVLight
+
+	const float4	gBlueShift;
+
+	// Pixel Shader Sky
+	float4 ph_sky(in const VS_SkyOutput i) : COLOR0
+	{
+//return float4(i.params.x,1,i.params.x,1);
+	
+		half2 uv0 = half2( i.extinction.w, i.inscatter.w );
+		half2 uv1 = i.texcoord12.xy;
+		half2 uv2 = i.texcoord12.zw;
+	
+		half4 diffuse = tex2D(sDiffuse, half2(uv2.y, uv0.y));
+		half4 diffuse2 = tex2D(sDiffuse, half2(uv0.x, uv0.y + 0.33f));
+		half4 diffuse3 = tex2D(sDiffuse, half2(uv0.x, uv0.y + 0.66f));
+		diffuse = diffuse * uv1.x + diffuse2 * uv1.y + diffuse3 * uv2.x;
+	
+		half3 skyColor = i.inscatter.xyz;
+		skyColor.r = lerp(skyColor.r, skyColor.g, (1.0f - i.params.x));
+
+		half lerpfactor = min(diffuse.a * i.extinction.g, 1);
+		half3 blend = lerp(skyColor.rgb, diffuse.rgb*30.0f, lerpfactor);
+
+		float badweather = (1.0f - i.params.x) * 1.30f * diffuse.a;
+		blend -= float3(badweather.x * 1.50f, badweather.xx);
+
+		#ifdef _X360
+			blend = PackHDRSample(blend);
+		#endif
+
+		return	float4(blend,1);
+	}
+
+	// Pixel Shader sun
+	float4 ph_skysun(in const VS_SkysunOutput i) : COLOR0
+	{
+//		return float4(0,1,0,1);
+
+		half3 eye = normalize(i.eye);
+		float d = 0.0005-min(0,dot(eye,gDLight.Dir.xyz));
+			  d = min(1,d);
+			  d = pow(d,20000)*2000;			  
+		float3 color = gDLight.Color.xyz*d*i.extinction;
+		color += i.inscatter;
+	
+		
+		float4 moonColor = tex2D(sDiffuse, i.texCoord);
+		moonColor.rgb = i.inscatter + moonColor.rgb * 70.0f * i.extinction;
+		
+		
+		float4 finalColor = lerp(moonColor, float4(color, 1), gBlueShift.w);
+
+		#ifdef _X360
+			finalColor.rgb = PackHDRSample( finalColor.rgb );
+		#endif
+
+		return finalColor;
+
+		return	float4(color,1);
+	}

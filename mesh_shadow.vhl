@@ -1,0 +1,26 @@
+	#include "mesh.h"
+	#include "hlsl_shadow.h"
+ 
+
+	void vh_shadow(const VS_Input_Shadow i,inout VS_Output_ShadowMap o)
+	{
+		o.position	= ProjectVertex(ReAddShadowBias(i.position));
+		o.uvzw.xy	=MaterialMat(i.uv);
+		o.uvzw.zw	=o.position.zw;
+	}
+  
+ 	void vh_rshadow(const VS_Input_Shadow i,inout VS_Output_ShadowMap o)
+	{
+		o.position	= ProjectVertex(ReAddShadowBias(i.position));
+		o.uvzw.xy	=MaterialMat(i.uv);
+		o.uvzw.zw	=o.position.zw;
+	}
+	
+  	void vh_mshadow(const VS_Input_Shadow i,in const float3 morph_d0 : POSITION2,inout VS_Output_ShadowMap o)
+	{
+		float	pixelmorph;
+		o.position	= ProjectVertex(ReAddShadowBias(TargetMorph(i.position,morph_d0,pixelmorph)));
+		o.uvzw.xy	=MaterialMat(i.uv);
+		o.uvzw.zw	=o.position.zw;
+	}
+ 

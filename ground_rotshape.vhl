@@ -1,0 +1,54 @@
+	#include "ground_rotshape.h"
+	#include "hlsl_shadow.h"
+
+
+ 	void vh_base(const VS_Input i,inout VS_GroundRotShapeOutput o)
+	{
+		//Génération du point
+		float3	lPos=(CAM_WSIDE*i.t02.z+CAM_WUP*i.t02.w)*C_INV256;
+		float4	wPos=i.position;
+			wPos.xyz+=lPos;
+   
+	//	wPos.xyz+=C_GROUND_WINDX*i.t1.x;
+	//	wPos.xyz+=C_GROUND_WINDZ*i.t1.y;
+  
+	#ifdef	bShadowMap
+		o.shadowtcproj=ProjShadow(wPos);
+	#endif
+		float4	vPos=WorldToViewVertex(wPos);
+		o.position=ProjVertex(vPos);
+		
+ 
+		// Fade
+		float	dist = sqrt(dot(vPos.xyz,vPos.xyz));
+	 	float	att = (dist-C_GROUND_FADE_MIN)*C_GROUND_FADE_OVERMAXMIN;
+				att = min(att,C_UNIT);
+	    			att = max(att,C_NULL);
+				
+		o.color.w 	=C_UNIT-att;    
+		o.color.xyz	=i.color.xyz;
+  
+		o.sundir.xyz=DLIGHT_DIR;
+  		o.skydir	=DSKY_DIR;
+	 	o.eyevec.xyz=EYE_WORLD.xyz-wPos.xyz;
+		o.normal.xyz=i.normal;
+
+		SetSpecular(o,i.t1.x*C_INV256);
+    
+		scattering(wPos,C_UNIT,DLIGHT_DIR,o.extinction.xyz,o.inscatter.xyz,o.sunlight,o.skylight);
+
+		SetDiffuseUV(o,i.t02.xy*C_INV256);
+		SetOcclusion(o,i.color.w);
+  	 }    
+                                    
+	void vh_shadow(const VS_Input_Shadow i,inout VS_Output_ShadowMap o)
+	{ 
+	 	//Génération du point
+		float3	lPos=(CAM_WSIDE*i.t02.z+CAM_WUP*i.t02.w)*C_INV256;
+     		float4	wPos=i.position;
+		wPos.xyz+=lPos;
+ 		o.position=WorldToProjVertex(ReAddShadowBias(wPos));
+
+		o.uvzw.xy=i.t02.xy*C_INV256;
+		o.uvzw.zw=o.position.zw;
+	}  

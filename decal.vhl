@@ -1,0 +1,21 @@
+	#include "particle.h"
+	
+	#ifdef _PS3
+	  float4 WorldToProjVertex( const in float4 wPos )
+	  {
+		return ProjVertex( ViewVertex(wPos) );
+	  }
+	#endif
+
+	void vh_decal (const VS_3DIn i, out VS_3DOut o)
+	{
+		float4 position = WorldToProjVertex( float4(i.position.xyz,1) );
+		position.z		-= C_INV16;
+
+		o.position		= position;
+		o.color			= i.color;
+		o.diffuse		= i.diffuse;
+		o.fog.xyz		= FOG_COLOR;
+		o.fog.w			= FOG_ON*i.position.w;
+	}
+

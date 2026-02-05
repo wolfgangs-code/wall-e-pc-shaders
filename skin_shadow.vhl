@@ -1,0 +1,51 @@
+	#include "skin.h"
+	#include "hlsl_shadow.h"
+	
+	void Blend_Shadow(const VS_Output_Blended b,const float2 inUV,inout VS_Output_ShadowMap o)
+	{
+		o.position		= ProjectVertex(ReAddShadowBias(b.position));
+		o.uvzw.xy		= MaterialMat(inUV);
+		o.uvzw.zw			= o.position.zw;
+	}
+	void vh_blend1_shadow(const VS_Input_1Blend i, inout VS_Output_ShadowMap o)
+	{
+		VS_Output_Blended	b;
+		Blend1(i,i.position,b);
+		Blend_Shadow(b,i.uv,o);
+	}
+	void vh_blend4_shadow(const VS_Input_4Blend i, inout VS_Output_ShadowMap o)
+	{
+		VS_Output_Blended	b;
+		Blend4(i,i.position,b);
+		Blend_Shadow(b,i.uv,o);
+	}
+	void vh_blend1_morph_shadow(const VS_Input_1Blend i,	in const float3 morph_d0 : POSITION3,
+													in const float3	morph_d1 : POSITION4,
+													in const float3	morph_d2 : POSITION5,
+													in const float3	morph_d3 : POSITION6,
+													inout VS_Output_ShadowMap o)
+	{
+		float4	position=i.position;
+			position.xyz+=morph_d0*C_MORPH_RATIO_0;
+			position.xyz+=morph_d1*C_MORPH_RATIO_1;
+			position.xyz+=morph_d2*C_MORPH_RATIO_2;
+			position.xyz+=morph_d3*C_MORPH_RATIO_3;
+		VS_Output_Blended	b;
+		Blend1(i,position,b);
+		Blend_Shadow(b,i.uv,o);
+	}
+	void vh_blend4_morph_shadow(const VS_Input_4Blend i,	in const float3 morph_d0 : POSITION4,
+													in const float3	morph_d1 : POSITION5,
+													in const float3	morph_d2 : POSITION6,
+													in const float3	morph_d3 : POSITION7,
+													inout VS_Output_ShadowMap o)
+	{
+		float4	position=i.position;
+			position.xyz+=morph_d0*C_MORPH_RATIO_0;
+			position.xyz+=morph_d1*C_MORPH_RATIO_1;
+			position.xyz+=morph_d2*C_MORPH_RATIO_2;
+			position.xyz+=morph_d3*C_MORPH_RATIO_3;
+		VS_Output_Blended	b;
+		Blend4(i,position,b);
+		Blend_Shadow(b,i.uv,o);
+	}

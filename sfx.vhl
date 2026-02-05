@@ -1,0 +1,25 @@
+	#include "sfx.h"
+	#include "particle.h"
+
+	void vh_sfxbase (const VS_3DIn i, out VS_SmokeOut o)
+	{
+		float4 position=float4(i.position.xyz, C_UNIT);
+
+		o.position		= ProjVertex(position);
+		o.color			= i.color;
+		o.diffuse		= i.diffuse;
+
+		// scattering shit
+		float3	extinction;
+		float3	inscatter;
+		float3	sunlight;
+		float3	skylight;
+		scattering(position,C_UNIT,DLIGHT_DIR,extinction,inscatter,sunlight,skylight);
+		o.extinction=float4(extinction.xyz, C_UNIT);
+		o.inscatter=float4(inscatter.xyz, C_UNIT);
+		o.sunlight=float4(sunlight.xyz, C_UNIT);
+		o.skylight=float4(skylight.xyz, C_UNIT);
+		o.sundir	=DLIGHT_DIR;
+		o.skydir	=DSKY_DIR;
+	}
+

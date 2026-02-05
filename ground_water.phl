@@ -1,0 +1,233 @@
+	#include "ground_water.h"
+	#include "hlsl_shadow.h"
+	
+ //Raf: à faire remonter
+	
+#ifdef _PS3
+    #define PackHDRSample(diffuse)   diffuse
+    #define UnpackHDRSample(diffuse) diffuse.rgb
+#endif
+
+#ifdef _X360
+    float texDepth2D ( sampler2D depthBuffer, const in float2 uv )
+    {
+		return 1.0f - tex2D( depthBuffer, uv ).x;
+    }
+#endif
+
+
+#if defined (_X360) || defined(_PS3)
+
+	const float4 gWaterSettings0;
+	const float4 gWaterSettings1;
+	const float4 gWaterSettings2;
+	const float4 gWaterSettings3;
+	const float4 gWaterSettings4;
+	
+	float Fresnel( float3 eye, float3 normal, float R0 )
+	{
+		//How to compute R0:
+		//R0 = pow( 1 - refractionIndexRatio, 2.0f ) /
+		//     pow( 1 + refractionIndexRatio, 2.0f );
+		
+		float cosangle = 1.0f - saturate( dot( eye, normal ) );
+		
+		float fresnel = pow( cosangle, 5.0f );
+		//float fresnel = cosangle * cosangle * cosangle * cosangle * cosangle;
+		
+		fresnel = saturate( fresnel * (1.0f - saturate(R0)) + R0 );
+		
+		fresnel *= gWaterSettings2.y;
+		
+		return fresnel;
+	}
+	
+	float TransformZToViewSpace( float z )
+	{
+		//TODO pass these via shader constants
+		const float n = 0.8f;
+		const float f = 80000.0f;
+		
+		return ( f * n ) / ( f - z * (f - n) );
+	}
+	
+	float ComputeWaterDepth( in float4 samplePos, out float2 screenUV, out float waterDist )
+	{
+		samplePos /= samplePos.w;
+		
+		samplePos.xy = ( samplePos.xy + 1.0f ) * 0.5f;
+		samplePos.y = 1.0f - samplePos.y;
+		
+		//samplePos.xy += float2( 0.5f / 1280.0f, 0.5f / 720.0f );
+			
+		samplePos.xy = samplePos.xy * gWaterSettings3.zw + gWaterSettings3.xy;
+		
+		screenUV = samplePos.xy;
+				
+        float storedZ = texDepth2D( sZBuffer, samplePos.xy );
+		
+		float curZ = samplePos.z;
+	
+		storedZ = TransformZToViewSpace( storedZ );
+		curZ = TransformZToViewSpace( curZ );
+		waterDist = curZ;
+
+		return max( storedZ - curZ, 0.0f );
+	}
+	
+    float4 ph_water(in const VS_GroundWaterOutput_Z i) : COLOR0
+	{
+		float2 screenUV;
+		float waterDist;
+		
+		float waterDepth = ComputeWaterDepth( i.zBuffUV, screenUV, waterDist );
+		waterDepth *= gWaterSettings1.z;
+		
+		float4 color;
+				
+		float3 normal;
+		normal = tex2D(sNormal,i.uv.xy).xyz;
+		normal += tex2D(sNormal,i.uv.zw).xyz;
+		
+		normal = normal * 2 - 1;
+		
+		//Scale the normals
+		float3 specularNormal = normal;
+		specularNormal.y *= gWaterSettings4.x;
+		specularNormal = normalize(specularNormal);
+		normal.y *= gWaterSettings0.w;
+		normal = normalize(normal);
+
+		screenUV += ( normal.xz ) * ( waterDepth * gWaterSettings1.x ) / waterDist;
+
+		float4 refraction = tex2D( sRenderTarget, screenUV );
+
+		#ifdef _X360
+		refraction.rgb = UnpackHDRSample( refraction );
+		#endif
+		
+		//float fogAmount = pow( waterDepth, gWaterSettings2.z );
+		float fogAmount = saturate( 1-exp( -waterDepth * gWaterSettings2.z * i.diffuse.a ) );
+		//return float4( fogAmount, fogAmount, fogAmount, 1 );
+		
+		#ifdef	bShadowMap
+			float3 light=PixelShadow4(i.shadowtcproj)*i.sunlight.xyz+i.skylight.xyz;
+		#else
+			float3 light=i.sunlight.xyz+i.skylight.xyz;
+		#endif
+	
+		float3 waterColor = i.diffuse.rgb * light * gWaterSettings0.x;
+		float3 foggedRefraction = lerp( refraction.rgb, waterColor, fogAmount );
+	
+		float3 eye = normalize(i.eyevec*2-1);
+		float3 vReflect = reflect( -eye, normal );
+		
+		// Reflections
+		
+		vReflect.z = -vReflect.z; //TODO fix this hack
+		float4 vEnvironment = texCUBE( sGlobalCube, vReflect );
+
+		#ifdef _X360
+		vEnvironment.rgb = UnpackHDRSample( vEnvironment );
+		#endif
+		
+		vEnvironment.rgb *= gWaterSettings1.y;
+		
+		float fresnel = Fresnel( eye, normal, gWaterSettings1.w );
+		//return float4( fresnel, fresnel, fresnel, 1.0f );
+		
+		//float3 light=i.sunlight+i.skylight;
+
+		//#ifdef	bShadowMap
+		//	light *= PixelShadow4( i.shadowtcproj );
+		//#endif
+	
+		color.a = 1.0f;
+		color.rgb = lerp( foggedRefraction, vEnvironment.rgb, fresnel );
+		
+		
+		
+		//Specular
+		vReflect = reflect( -eye, specularNormal );
+		vReflect.z = -vReflect.z; //TODO fix this hack
+		float spec = max( 0.0f, dot( vReflect, i.lightDir ) );
+		spec = pow( spec, gWaterSettings4.y ) * gWaterSettings4.z;
+		//return float4( spec, spec, spec, 1.0f );
+		color.rgb += light * spec;
+		
+		//Scattering
+		color.rgb *= i.extinction.xyz;
+		color.rgb += i.inscatter.xyz;
+		
+		float borderSoftening = saturate( waterDepth * i.diffuse.a * gWaterSettings2.x );
+		color.rgb = lerp( refraction.rgb, color.rgb, borderSoftening ); //Make water transparent at low water depth
+		
+	#ifdef _X360
+		color.rgb = PackHDRSample( color.rgb );
+	#endif
+		
+		return color;
+	}
+
+#else
+
+	float4 ph_water(in const VS_GroundWaterOutput_Z i) : COLOR0
+	{
+	
+		float4 color;
+		
+		float3 normal;
+		normal = tex2D(sNormal,i.uv.xy).xyz * 1;
+		normal += tex2D(sNormal,i.uv.zw).xyz * 1;		
+		
+		normal = normal * 2 - 1;
+		
+		//Scale the normal
+		normal.y *= 4.0f;
+		normal = normalize(normal);
+		
+				
+		float3 eye = normalize(i.eyevec*2-1);
+		float3 vReflect = reflect( -eye, normal );
+		
+		// Reflections
+		
+		vReflect.z = -vReflect.z; //TODO fix this hack
+		float4 vEnvironment = texCUBE( sGlobalCube, vReflect );
+
+	
+		// Fresnel term (blend between refraction and reflection)
+		float fNdotV = saturate( dot( eye, normal )); // Fresnel term
+		float fFresnel = 1.f- fNdotV;
+		fFresnel = saturate( fFresnel );
+		fFresnel*=fFresnel;
+		fFresnel=0.1+fFresnel*0.7;//*0.1;
+		float	fresnelalpha=fFresnel;
+
+		// alpha global pour avoir des plus jolis bords => pas 100% réaliste
+		float	globalalpha=saturate(i.diffuse.a*40.f);
+		
+		// alpha scattering, si pas de reflet, alors l'eau elle meme est transparente
+		float	scatalpha=i.diffuse.a*15.f;
+		// TODO: Utiliser le Z buffer comme distance et i.diffuse.a comme densité
+
+		vEnvironment.rgb=vEnvironment.rgb*0.5;
+
+	#ifdef	bShadowMap
+		float3 light=PixelShadow4(i.shadowtcproj)*i.sunlight+i.skylight;
+	#else
+		float3 light=i.sunlight+i.skylight;
+	#endif
+		color.rgb = lerp( i.diffuse.rgb*light*0.5, vEnvironment.rgb, fFresnel );
+		color.a = globalalpha*saturate(scatalpha+fresnelalpha);
+
+		//Scattering
+		
+		color.xyz *= i.extinction.xyz;
+		color.xyz += i.inscatter.xyz;
+		
+		return color;
+	}
+
+#endif
+	
