@@ -14,12 +14,12 @@
 
 	struct VS_ScatOutput {
 		float4	position	: POSITION;
-		half3	eyevec		: TEXCOORD4;
+		float3	eyevec		: TEXCOORD4;
 
 		S_TexSpace			TexSpace;
 
-		half4	inscatter	: TEXCOORD5;
-		half4	extinction	: TEXCOORD6;
+		float4	inscatter	: TEXCOORD5;
+		float4	extinction	: TEXCOORD6;
 		
 		#ifdef	bShadowMap
 			float4  shadowtcproj	: TEXCOORD7;

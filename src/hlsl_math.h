@@ -76,7 +76,7 @@
 		float neg_m_ProjQN = c[C_PROJ_CONTEXT+2].w;
 		return (z*m_ProjQ+neg_m_ProjQN);
 	}
-	half3 Envmap(in const float3 inNormal,in const float3 inPos,float4 inProjPos)
+	float3 Envmap(in const float3 inNormal,in const float3 inPos,float4 inProjPos)
 	{
 		float3	t;
 		#ifdef	bEnvmapScreen
@@ -96,10 +96,10 @@
 		return	t;
 	}
 	//Material
-	half2 MaterialMat(in float2 t)
+	float2 MaterialMat(in float2 t)
 	{
-		half3	p=half3(t.x,t.y,C_UNIT);
-		half2	v;
+		float3	p=float3(t.x,t.y,C_UNIT);
+		float2	v;
 		v.x=dot(p,c[C_MTL_CONTEXT+0].xyz);
 		v.y=dot(p,c[C_MTL_CONTEXT+1].xyz);
 		return	v;
@@ -156,7 +156,7 @@
 
 
 #ifndef	bVLight
-	half2	RadTexCoord(in float2 radiosity)
+	float2	RadTexCoord(in float2 radiosity)
 	{
 		#ifndef	bNormal
 		return	radiosity;
@@ -168,7 +168,7 @@
 #ifdef bRadiosity
 #define RADMAP_SIZE 256.0f
 
-	half3	RadMap(const S_TexCoord i)
+	float3	RadMap(const S_TexCoord i)
 	{
 		float2 texSize = float2(RADMAP_SIZE, RADMAP_SIZE);
 		float2 invTexSize = 1.0f / texSize;
@@ -223,7 +223,7 @@
 		t1 *= invTexSize;
 
 		// 4 Bilinear Samples blended
-		half3 c = 0;
+		float3 c = 0;
 		c += tex2D(sRadiosityMap, float2(t0.x, t0.y)).rgb * s0.x * s0.y;
 		c += tex2D(sRadiosityMap, float2(t1.x, t0.y)).rgb * s1.x * s0.y;
 		c += tex2D(sRadiosityMap, float2(t0.x, t1.y)).rgb * s0.x * s1.y;

@@ -18,16 +18,16 @@
 	
 	struct VS_GroundRotShapeOutput {
 		float4	position	: POSITION;
-		half4	color		: COLOR0;
-		half4	normal		: COLOR1;
-		half4	sundir		: TEXCOORD0;
-		half3	skydir		: TEXCOORD1;
-		half3	sunlight	: TEXCOORD2;
-		half3	skylight	: TEXCOORD3;
+		float4	color		: COLOR0;
+		float4	normal		: COLOR1;
+		float4	sundir		: TEXCOORD0;
+		float3	skydir		: TEXCOORD1;
+		float3	sunlight	: TEXCOORD2;
+		float3	skylight	: TEXCOORD3;
 
 		float4	inscatter	: TEXCOORD4;
 		float4	extinction	: TEXCOORD5;
-		half3	eyevec		: TEXCOORD6;
+		float3	eyevec		: TEXCOORD6;
 		#ifdef	bShadowMap
 		float4  shadowtcproj	: TEXCOORD7;
 		#endif

@@ -74,7 +74,7 @@
 	// Les petites flaques ou les piscines
 	float4 ph_water(const PS_Input_Water i) : COLOR0
 	{
-		half4	color;
+		float4	color;
 		
 		// Pass 0
 		color.rgb = i.color.rgb*tex2D(sDiffuse,i.diffuse.xy).rgb*2;
@@ -82,9 +82,9 @@
 		
 		// Pass 1
 	#ifdef bEnvmap
-		half3	refCol  = tex2D(sEnvmap,i.reflection);
+		float3	refCol  = tex2D(sEnvmap,i.reflection);
 	#else
-		half3	refCol  = half3(0.5,0.5,0.5);//tex2D(sDiffuse,i.reflection);
+		float3	refCol  = float3(0.5,0.5,0.5);//tex2D(sDiffuse,i.reflection);
 	#endif
 
 		color.xyz = lerp(color.xyz,refCol,i.fresnel.x);

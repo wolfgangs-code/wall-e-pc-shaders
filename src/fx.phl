@@ -197,7 +197,7 @@
 	
 	float4	ph_shrink2x2bilinear(in float2 vScreenPosition : TEXCOORD0) : COLOR0
 	{
-		half3	vSample = 0.0f;
+		float3	vSample = 0.0f;
 #ifdef _X360
 		[unroll]
 #endif

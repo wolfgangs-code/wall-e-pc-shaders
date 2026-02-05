@@ -19,12 +19,12 @@
 
 	struct VS_GroundOutput {
 		float4	position	: POSITION;
-		half4	color		: COLOR0;
-		half3	normal		: TEXCOORD0;
-		half3	sundir		: TEXCOORD1;
-		half3	skydir		: TEXCOORD2;
-		half3	sunlight	: TEXCOORD3;
-		half3	skylight	: TEXCOORD4;
+		float4	color		: COLOR0;
+		float3	normal		: TEXCOORD0;
+		float3	sundir		: TEXCOORD1;
+		float3	skydir		: TEXCOORD2;
+		float3	sunlight	: TEXCOORD3;
+		float3	skylight	: TEXCOORD4;
 		float4	inscatter	: TEXCOORD5;
 		float4	extinction	: TEXCOORD6;
 		#ifdef	bShadowMap

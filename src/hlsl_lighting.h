@@ -1,7 +1,7 @@
 #ifndef	_HLSL_LIGHTING_H
 #define	_HLSL_LIGHTING_H
 
-	half4 Fog(in const float4 inPos)
+	float4 Fog(in const float4 inPos)
 	{
 		float4	v;
 		v.xyz=FOG_COLOR;
@@ -20,7 +20,7 @@
 
 			o.light.w=MTL_EMISSIVE.w*GOURAUD_DFLT.w;
 	#ifndef	bNoDLight
-			half4	dl=(max(C_NULL,dot(DLIGHT_DIR,normal)))*DLIGHT_COLOR+DLIGHT_AMBIENT;
+			float4	dl=(max(C_NULL,dot(DLIGHT_DIR,normal)))*DLIGHT_COLOR+DLIGHT_AMBIENT;
 			o.light.xyz=(dl*MTL_DIFFUSE+MTL_EMISSIVE)*GOURAUD_DFLT;
 	#else
 			o.light.xyz=C_NULL;
@@ -173,10 +173,10 @@
 
 	#include "scattering.h"
 	
-	float3 lighting(	const float3 normal,	//Déja Normé
-						const float3 sun,		//Déja Normé
-						const float3 sky,		//Déja Normé
-						const float3 eye,		//Déja Normé
+	float3 lighting(	const float3 normal,	//DÃ©ja NormÃ©
+						const float3 sun,		//DÃ©ja NormÃ©
+						const float3 sky,		//DÃ©ja NormÃ©
+						const float3 eye,		//DÃ©ja NormÃ©
 						const float3 suncolor,const float3 skycolor,const float3 color,
 						const float speclevel,
 						const float shadow)

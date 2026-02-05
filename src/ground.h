@@ -26,13 +26,13 @@
 
 	struct VS_GroundOutput {
 		float4	position	: POSITION;
-		half4	color		: COLOR0;
-		half4	eyevec		: TEXCOORD4;
-		half4   variables	: TEXCOORD0;
+		float4	color		: COLOR0;
+		float4	eyevec		: TEXCOORD4;
+		float4   variables	: TEXCOORD0;
 		
-		half4	sundir		: TEXCOORD1;
-		half4	skydir		: TEXCOORD2;
-		half3	omni		: TEXCOORD3;
+		float4	sundir		: TEXCOORD1;
+		float4	skydir		: TEXCOORD2;
+		float3	omni		: TEXCOORD3;
 
 		float4	inscatter	: TEXCOORD5;
 		float4	extinction	: TEXCOORD6;

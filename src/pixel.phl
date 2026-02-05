@@ -27,8 +27,8 @@
 	}
 		
 #ifdef	bOmni
-	float3 ph_omni(		in const half3 vPos,
-						in const half4 omnitcproj,
+	float3 ph_omni(		in const float3 vPos,
+						in const float4 omnitcproj,
 						in const float3 ref,in const float4 tSpecular,
 						in const float3 tDiffuse,in const float3 tNormal,
 						in const PixelOmni Omni,

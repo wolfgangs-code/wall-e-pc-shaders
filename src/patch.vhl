@@ -31,7 +31,7 @@
 #ifdef	bVLight
 		VertexLighting(position,normal,o);
 #else
-		//Tangent Space (la tangent n est pas compressé donc FALSE !)
+		//Tangent Space (la tangent n est pas compressÃ© donc FALSE !)
 		float3x3 mLight	= LightMat(tangent,normal,false);
 		OutTexSpace(o.TexSpace,mLight,position,normal);
 		
@@ -181,7 +181,7 @@
 		// Apply dlight
 		o.color.w = MTL_EMISSIVE.w*GOURAUD_DFLT.w;
 	#ifndef	bNoDLight
-		half4	dl=(max(C_NULL,dot(DLIGHT_DIR,normal)))*DLIGHT_COLOR+DLIGHT_AMBIENT;
+		float4	dl=(max(C_NULL,dot(DLIGHT_DIR,normal)))*DLIGHT_COLOR+DLIGHT_AMBIENT;
 		o.color.xyz = (dl*MTL_DIFFUSE+MTL_EMISSIVE)*GOURAUD_DFLT;
 	#else
 		o.color.xyz = C_NULL;
@@ -190,19 +190,19 @@
 		//o.color.xyz = normal*C_HALF+C_HALF;
 		
 		// Pass 1
-		half3	eye = EYE_LOCAL.xyz-position.xyz;
-		half3	eye_normalized = normalize(eye);
+		float3	eye = EYE_LOCAL.xyz-position.xyz;
+		float3	eye_normalized = normalize(eye);
 		
 		// Add reflection
-		half	eye_dot_norm = saturate(dot(eye_normalized,normal));
+		float	eye_dot_norm = saturate(dot(eye_normalized,normal));
 		
 		// Fresnel term
-		half	fresnel = 1-eye_dot_norm;
+		float	fresnel = 1-eye_dot_norm;
 		fresnel = fresnel*fresnel;
 		fresnel = fresnel*fresnel;
 		
 		// Reflection = 2*(E.N)*N-E
-		half3	reflect = 2*eye_dot_norm*normal-eye_normalized;
+		float3	reflect = 2*eye_dot_norm*normal-eye_normalized;
 		o.reflection = reflect.xz*C_HALF+C_HALF;
 		o.fresnel.xyz = fresnel*MTL_PARAMS.w+MTL_PARAMS.z;
 

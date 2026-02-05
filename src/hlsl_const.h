@@ -41,7 +41,7 @@ const float4	c[C_END_CONSTANT]	: register(vs, c0);
 	const float3		gDSkyDir;
 	const float3		gGouraudDefault;
 
-	//Sample disponible et remappé
+	//Sample disponible et remappÃ©
 
 	//Stage des matieres
 	sampler2D sDiffuse : register(s0);
@@ -86,23 +86,23 @@ const float4	c[C_END_CONSTANT]	: register(vs, c0);
 //-----------------------------------------------------------------------------
 	struct S_TexSpace {
 #ifdef	bNormal
-		half4	axe0		: TEXCOORD1;	//XYZ Texture Space W=Local Vertex X
-		half4	axe1		: TEXCOORD2;	//XYZ Texture Space W=Local Vertex Y
-		half4	axe2		: TEXCOORD3;	//XYZ Texture Space W=Local Vertex Z
+		float4	axe0		: TEXCOORD1;	//XYZ Texture Space W=Local Vertex X
+		float4	axe1		: TEXCOORD2;	//XYZ Texture Space W=Local Vertex Y
+		float4	axe2		: TEXCOORD3;	//XYZ Texture Space W=Local Vertex Z
 #else
 	#ifndef	bNormalLocal
-		half3	normal		: TEXCOORD1;	//Vertex Normal or Texture is Local NormalMap
+		float3	normal		: TEXCOORD1;	//Vertex Normal or Texture is Local NormalMap
 	#endif
-		half3	pos			: TEXCOORD2;	//Local Vertex
+		float3	pos			: TEXCOORD2;	//Local Vertex
 #endif
 	};
 
 #ifdef	bVLight	// Vertex lighting (ps1.2)
 
 	struct S_TexCoord {
-		half2	diffuse		: TEXCOORD0;
+		float2	diffuse		: TEXCOORD0;
 	#ifdef	bRadiosity
-		half2	radiosity	: TEXCOORD1;
+		float2	radiosity	: TEXCOORD1;
 	#endif
 	};
 
@@ -110,30 +110,30 @@ const float4	c[C_END_CONSTANT]	: register(vs, c0);
 		float4	position	: POSITION;
 		S_TexCoord			TexCoord;
 	#ifdef	bEnvmap
-		half3  envmap		: TEXCOORD2;
+		float3  envmap		: TEXCOORD2;
 	#endif
-		half4  fog			: COLOR1;
-		half4  light		: COLOR0;
+		float4  fog			: COLOR1;
+		float4  light		: COLOR0;
 	#ifdef	bSpecular
-		half3  eyevec		: TEXCOORD4;
+		float3  eyevec		: TEXCOORD4;
 	#endif
 	};
 	struct PS_Input
 	{
 		S_TexCoord			TexCoord;
 	#ifdef	bEnvmap
-		half3 envmap		: TEXCOORD2;
+		float3 envmap		: TEXCOORD2;
 	#endif
-		half4 fog			: COLOR1;
-		half4 light			: COLOR0;
+		float4 fog			: COLOR1;
+		float4 light			: COLOR0;
 	#ifdef	bSpecular
-		half3 eyevec		: TEXCOORD4;
+		float3 eyevec		: TEXCOORD4;
 	#endif
 	};
 //-----------------------------------------------------------------------------
 #else			// Pixel Lighting (ps2.0)
 	struct S_TexCoord {
-		half4	diffuse		: TEXCOORD0;
+		float4	diffuse		: TEXCOORD0;
 	};
 
 	struct VS_Output {
@@ -141,10 +141,10 @@ const float4	c[C_END_CONSTANT]	: register(vs, c0);
 		S_TexCoord			TexCoord;
 		S_TexSpace			TexSpace;
 	#ifdef	bEnvmap
-		half3  envmap		: TEXCOORD4;	//envmap texcoord or proj position 
+		float3  envmap		: TEXCOORD4;	//envmap texcoord or proj position 
 	#endif
 	#ifdef	bGouraud
-		half4  color		: TEXCOORD4;	//color
+		float4  color		: TEXCOORD4;	//color
 	#endif
 	#ifdef	bShadowMap
 		float4  shadowtcproj	: TEXCOORD4;
@@ -152,12 +152,12 @@ const float4	c[C_END_CONSTANT]	: register(vs, c0);
 			float4 shadowNoiseUv : TEXCOORD8;
 		#endif
 	#endif
-		half4  fog			: TEXCOORD5;	//fog params
+		float4  fog			: TEXCOORD5;	//fog params
 	#ifdef	bSpecular
-		half3  eyevec		: TEXCOORD6;	//eye vector (unormalized)
+		float3  eyevec		: TEXCOORD6;	//eye vector (unormalized)
 	#endif
 	#ifdef	bOmni
-		half4  omnitcproj	: TEXCOORD7;
+		float4  omnitcproj	: TEXCOORD7;
 	#endif
 	#ifdef	bBlendScreen
 		float4	projpos		: TEXCOORD7;	//Utilise dans Pawap, pour blender (Lamber) le rendu lors du compute radiosity
@@ -168,10 +168,10 @@ const float4	c[C_END_CONSTANT]	: register(vs, c0);
 		S_TexCoord			TexCoord;
 		S_TexSpace			TexSpace;
 	#ifdef	bEnvmap
-		half3  envmap		: TEXCOORD4;	//envmap texcoord or proj position 
+		float3  envmap		: TEXCOORD4;	//envmap texcoord or proj position 
 	#endif
 	#ifdef	bGouraud
-		half4  color		: TEXCOORD4;	//color
+		float4  color		: TEXCOORD4;	//color
 	#endif
 	#ifdef	bShadowMap
 		float4  shadowtcproj	: TEXCOORD4; 
@@ -179,12 +179,12 @@ const float4	c[C_END_CONSTANT]	: register(vs, c0);
 			float4 shadowNoiseUv : TEXCOORD8;
 		#endif
 	#endif
-		half4  fog			: TEXCOORD5;	//fog params
+		float4  fog			: TEXCOORD5;	//fog params
 	#ifdef	bSpecular
-		half3  eyevec		: TEXCOORD6;	//eye vector (unormalized)
+		float3  eyevec		: TEXCOORD6;	//eye vector (unormalized)
 	#endif
 	#ifdef	bOmni
-		half4  omnitcproj	: TEXCOORD7;
+		float4  omnitcproj	: TEXCOORD7;
 	#endif
 	#ifdef	bBlendScreen
 		float4	projpos		: TEXCOORD7;	//Utilise dans Pawap, pour blender (Lamber) le rendu lors du compute radiosity
@@ -198,20 +198,20 @@ const float4	c[C_END_CONSTANT]	: register(vs, c0);
 		S_TexCoord			TexCoord;
 		S_TexSpace			TexSpace;
 	#ifdef	bSpecular
-		half3  eyevec		: TEXCOORD4;	//eye vector (unormalized)
+		float3  eyevec		: TEXCOORD4;	//eye vector (unormalized)
 	#endif
-		half4  omni0tcproj	: TEXCOORD5;
-		half4  omni1tcproj	: TEXCOORD6;
+		float4  omni0tcproj	: TEXCOORD5;
+		float4  omni1tcproj	: TEXCOORD6;
 	};
 	struct PS_Input_Omni
 	{
 		S_TexCoord			TexCoord;
 		S_TexSpace			TexSpace;
 	#ifdef	bSpecular
-		half3  eyevec		: TEXCOORD4;	//eye vector (unormalized)
+		float3  eyevec		: TEXCOORD4;	//eye vector (unormalized)
 	#endif
-		half4  omni0tcproj	: TEXCOORD5;
-		half4  omni1tcproj	: TEXCOORD6;
+		float4  omni0tcproj	: TEXCOORD5;
+		float4  omni1tcproj	: TEXCOORD6;
 	};
 #endif
 
@@ -219,7 +219,7 @@ const float4	c[C_END_CONSTANT]	: register(vs, c0);
 //-----------------------------------------------------------------------------
 struct VS_Output_Volume {
 	float4	position	: POSITION;
-	half3	color		: COLOR0;
+	float3	color		: COLOR0;
 };
 
 //-----------------------------------------------------------------------------
@@ -231,39 +231,39 @@ struct VS_Output_Shadow {
 //-----------------------------------------------------------------------------
 struct VS_Output_Ref {
 	float4	position	: POSITION;
-	half3  light		: COLOR0;		//dlight direction (normalized)
-	half4  diffuse		: TEXCOORD0;	//diffuse.xy texcoord + rad
-	half2	uv			: TEXCOORD4;	//mesh uv
+	float3  light		: COLOR0;		//dlight direction (normalized)
+	float4  diffuse		: TEXCOORD0;	//diffuse.xy texcoord + rad
+	float2	uv			: TEXCOORD4;	//mesh uv
 	float4	projpos		: TEXCOORD1;		//= position
 #ifndef	bNormal
-	half3  normal		: TEXCOORD2;	//Normal interpolé
+	float3  normal		: TEXCOORD2;	//Normal interpolÃ©
 #endif
 #ifdef	bEnvmap
-	half2  envmap		: TEXCOORD3;
+	float2  envmap		: TEXCOORD3;
 #endif
 #ifdef	bSpecular
-	half3	eyevec		: TEXCOORD6;
+	float3	eyevec		: TEXCOORD6;
 #endif
 };
 struct PS_Input_Ref {
-	half4  diffuse		: TEXCOORD0;
-	half2	uv			: TEXCOORD4;	//mesh uv
-	half3  light		: COLOR0;		//dlight direction (normalized)
+	float4  diffuse		: TEXCOORD0;
+	float2	uv			: TEXCOORD4;	//mesh uv
+	float3  light		: COLOR0;		//dlight direction (normalized)
 	float4	projpos		: TEXCOORD1;
 #ifndef	bNormal
-	half3  normal		: TEXCOORD2;	//Normal interpolé
+	float3  normal		: TEXCOORD2;	//Normal interpolÃ©
 #endif
 #ifdef	bEnvmap
-	half2  envmap		: TEXCOORD3;
+	float2  envmap		: TEXCOORD3;
 #endif
 #ifdef	bSpecular
-	half3	eyevec		: TEXCOORD6;
+	float3	eyevec		: TEXCOORD6;
 #endif
 };
 //-----------------------------------------------------------------------------
 struct VS_Output_Water {
 	float4	position		: POSITION;
-	half4	fog				: COLOR1;		//fog params
+	float4	fog				: COLOR1;		//fog params
 	float4	color			: COLOR0;
 	float2	diffuse			: TEXCOORD0;
 	float2	radiosity		: TEXCOORD1;
@@ -271,7 +271,7 @@ struct VS_Output_Water {
 	float3	fresnel			: TEXCOORD3;
 };
 struct PS_Input_Water {
-	half4	fog				: COLOR1;		//fog params
+	float4	fog				: COLOR1;		//fog params
 	float4	color			: COLOR0;
 	float2	diffuse			: TEXCOORD0;
 	float2	radiosity		: TEXCOORD1;
@@ -282,14 +282,14 @@ struct PS_Input_Water {
 //-----------------------------------------------------------------------------
 struct VS_3DIn {
 	float4	position : POSITION0; // position (xyz) | fog coeff (w)
-	half4	color	 : COLOR0;
-	half2	diffuse	 : TEXCOORD0;
+	float4	color	 : COLOR0;
+	float2	diffuse	 : TEXCOORD0;
 };
 struct VS_3DOut {
 	float4	position	: POSITION0;
-	half4	color		: COLOR0;
-	half2	diffuse		: TEXCOORD0;
-	half4	fog		: COLOR1;
+	float4	color		: COLOR0;
+	float2	diffuse		: TEXCOORD0;
+	float4	fog		: COLOR1;
 };
 struct VS_2DInOut {
 	float4	position	: POSITION;

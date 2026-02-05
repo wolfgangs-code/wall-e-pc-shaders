@@ -3,10 +3,10 @@
 	// Atmospheric scattering
 
 	// !! Shared
-	// Attention, partagé entre la PS3, la XBox 360 et le PC.
-	// CG est moins permissif, donc écrire les choses correctement (avec les swizzles et tout)
+	// Attention, partagÃ© entre la PS3, la XBox 360 et le PC.
+	// CG est moins permissif, donc Ã©crire les choses correctement (avec les swizzles et tout)
 
-	// calcule un démultiplicateur intégral de densité athmosphérique entre deux points
+	// calcule un dÃ©multiplicateur intÃ©gral de densitÃ© athmosphÃ©rique entre deux points
 	void statterintegral(in const float lookAtLen,in const float iPos1y,in const float iPos2y,out float integral)
 	{
 		float4	r11,r10;
@@ -97,7 +97,7 @@
 		extinction*=extinction;
 	}
 
-	void scattering(in const float4 iPos, in const float muldensity, in const float3 sunlightdir,out float3 extinction,out float3 inscatter,out half3 sunlight,out half3 skylight)
+	void scattering(in const float4 iPos, in const float muldensity, in const float3 sunlightdir,out float3 extinction,out float3 inscatter,out float3 sunlight,out float3 skylight)
 	{
 		scatteringbase(iPos,muldensity,sunlightdir,extinction,inscatter);
 		sunlight = DLIGHT_COLOR.xyz*C_SCATTERCONSTANTS1.z;
@@ -105,9 +105,9 @@
 	}
 
 	//
-	// Version simplifiée du scattering.
-	// L'intégrale est calculée en externe et est stockée dans le vertex
-	void fast_scattering(in const float atmdensity,in const float4 iPos, in const float muldensity, in const float3 sunlightdir,out float3 extinction,out float3 inscatter,out half3 sunlight,out half3 skylight)
+	// Version simplifiÃ©e du scattering.
+	// L'intÃ©grale est calculÃ©e en externe et est stockÃ©e dans le vertex
+	void fast_scattering(in const float atmdensity,in const float4 iPos, in const float muldensity, in const float3 sunlightdir,out float3 extinction,out float3 inscatter,out float3 sunlight,out float3 skylight)
 	{
 		float3	lookAt = normalize(EYE_WORLD.xyz-iPos.xyz);
 		float CosTheta = min(C_NULL,dot(lookAt.xyz,sunlightdir.xyz));

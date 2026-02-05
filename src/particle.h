@@ -19,21 +19,21 @@
 
 	struct VS_Smoke_Out {
 	float4	position	: POSITION0;
-	half4	color		: COLOR0;
-	half2	diffuse		: TEXCOORD0;
-	half4	fog			: COLOR1;
+	float4	color		: COLOR0;
+	float2	diffuse		: TEXCOORD0;
+	float4	fog			: COLOR1;
 	float4  shadowtcproj: TEXCOORD2;
 	};
 
 	struct VS_SmokeOut {
 	float4	position	: POSITION0;
-	half4	color		: COLOR0;
+	float4	color		: COLOR0;
 
-	half2	diffuse		: TEXCOORD0;
-	half4	sundir		: TEXCOORD1;
-	half3	skydir		: TEXCOORD2;
-	half4	sunlight	: TEXCOORD3;
-	half4	skylight	: TEXCOORD4;
+	float2	diffuse		: TEXCOORD0;
+	float4	sundir		: TEXCOORD1;
+	float3	skydir		: TEXCOORD2;
+	float4	sunlight	: TEXCOORD3;
+	float4	skylight	: TEXCOORD4;
 
 	float3	extinction	: TEXCOORD5;
 	float3  inscatter	: TEXCOORD6;

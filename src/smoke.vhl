@@ -11,10 +11,10 @@
 		o.diffuse		= i.diffuse;
 
 		// scattering shit
-		half3 sunlight, skylight;
+		float3 sunlight, skylight;
 		scattering(position,C_UNIT,DLIGHT_DIR.xyz,o.extinction,o.inscatter,sunlight,skylight);
-		o.sunlight=half4(sunlight.xyz, C_UNIT);
-		o.skylight=half4(skylight.xyz, C_UNIT);
+		o.sunlight=float4(sunlight.xyz, C_UNIT);
+		o.skylight=float4(skylight.xyz, C_UNIT);
 		o.sundir	=DLIGHT_DIR;
 		o.skydir	=DSKY_DIR;
 	}
