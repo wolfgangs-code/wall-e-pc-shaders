@@ -115,7 +115,7 @@
 	}
 	float3x3	LightMat(in const float4 inTangent,in const float3 inNormal,uniform bool bCompTangent=true)
 	{
-		if(bCompTangent)		//inCompTangent a ramené entre -1/1 ?
+		if(bCompTangent)		//inCompTangent a ramenï¿½ entre -1/1 ?
 		{
 			float4		vTangent=inTangent*C_TWO-C_UNIT;
 			//vTangent.w = handedness
@@ -166,13 +166,70 @@
 	}
 #endif
 #ifdef bRadiosity
+#define RADMAP_SIZE 256.0f
+
 	half3	RadMap(const S_TexCoord i)
 	{
+		float2 texSize = float2(RADMAP_SIZE, RADMAP_SIZE);
+		float2 invTexSize = 1.0f / texSize;
+
+		float2 uv;
 	#ifdef	bVLight
-		return	tex2D(sRadiosityMap,i.radiosity.xy);
+		uv = i.radiosity.xy * texSize;
 	#else
-		return	tex2D(sRadiosityMap,i.diffuse.zw);
+		uv = i.diffuse.zw * texSize;
 	#endif
+
+		// High-Quality B-Spline Bicubic Filter
+		// Adapted from GPU Gems 2, Chapter 20 (Fast Third-Order Texture Filtering)
+		
+		float2 tc = floor(uv - 0.5f) + 0.5f;
+		float2 f = uv - tc;
+		float2 f2 = f * f;
+		float2 f3 = f2 * f;
+
+		// B-Spline weights
+		float2 w0 = f2 - 0.5f * (f3 + f); // Note: This is Catmull-Rom. Switching to B-Spline below for smoother results.
+		
+		// Recalculating for B-Spline (Smoother, less ringing than Catmull-Rom)
+		// w0 = (1-f)^3 / 6
+		// w1 = (3f^3 - 6f^2 + 4) / 6
+		// w2 = (-3f^3 + 3f^2 + 3f + 1) / 6
+		// w3 = f^3 / 6
+		
+		float2 one_minus_f = 1.0f - f;
+		float2 one_minus_f2 = one_minus_f * one_minus_f;
+		float2 one_minus_f3 = one_minus_f2 * one_minus_f;
+
+		w0 = one_minus_f3 / 6.0f;
+		float2 w1 = (3.0f * f3 - 6.0f * f2 + 4.0f) / 6.0f;
+		float2 w2 = (-3.0f * f3 + 3.0f * f2 + 3.0f * f + 1.0f) / 6.0f;
+		float2 w3 = f3 / 6.0f;
+
+		// Get bilinear offsets
+		float2 s0 = w0 + w1;
+		float2 s1 = w2 + w3;
+
+		// Calculate sampling coordinates with offset
+		// h0 = w1 / (w0 + w1) + center - 1
+		// h1 = w3 / (w2 + w3) + center + 1
+		float2 f0 = w1 / (s0 + 0.0001f); // Avoid div by zero
+		float2 f1 = w3 / (s1 + 0.0001f);
+
+		float2 t0 = tc - 1.0f + f0;
+		float2 t1 = tc + 1.0f + f1;
+
+		t0 *= invTexSize;
+		t1 *= invTexSize;
+
+		// 4 Bilinear Samples blended
+		half3 c = 0;
+		c += tex2D(sRadiosityMap, float2(t0.x, t0.y)).rgb * s0.x * s0.y;
+		c += tex2D(sRadiosityMap, float2(t1.x, t0.y)).rgb * s1.x * s0.y;
+		c += tex2D(sRadiosityMap, float2(t0.x, t1.y)).rgb * s0.x * s1.y;
+		c += tex2D(sRadiosityMap, float2(t1.x, t1.y)).rgb * s1.x * s1.y;
+
+		return c;
 	}
 #endif
 
