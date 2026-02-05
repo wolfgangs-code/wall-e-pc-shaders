@@ -1,4 +1,4 @@
-# Wall-E PC Shaders
+# Wall-E PC Shaders (Modernized)
 This repository contains custom, modernized shaders for *Wall-E* on Windows.
 
 For the original, unmodified shaders that ship with the game,
